@@ -9,11 +9,11 @@
     "icon": "book",
     "author": "W.G.",
     "link": "https://github.com/JenningsWu",
-    "deszh-CN": "日志. 战果部分 by rui",
-    "deszh-TW": "日誌. 戰果部份 by rui",
-    "desja-JP": "日誌. 戦果の部分はruiにより",
-    "desen-US": "Logs. Senka module is developed by rui",
-    "desko-KR": "일지. 전과 부분은 rui님이 개발"
+    "deszh-CN": "日志",
+    "deszh-TW": "日誌",
+    "desja-JP": "日誌",
+    "desen-US": "Logs",
+    "desko-KR": "일지"
   },
   "poi-plugin-battle-detail": {
     "zh-CN": "战斗记录",
@@ -58,9 +58,9 @@
     "author": "马里酱",
     "link": "https://github.com/malichan",
     "deszh-CN": "远征信息查询 & 成功条件检查",
-    "deszh-TW": "远征信息查询 & 成功条件检查",
-    "desja-JP": "远征信息查询 & 成功条件检查",
-    "desen-US": "远征信息查询 & 成功条件检查",
+    "deszh-TW": "遠征信息查詢 & 成功條件檢查",
+    "desja-JP": "遠征情報 & 成功条件チェック",
+    "desen-US": "Expedition requirements inquiry & validation",
     "desko-KR": "원정 정보 조회 & 성공 조건 확인"
   },
   "poi-plugin-hensei-nikki": {
@@ -89,10 +89,10 @@
     "icon": "wrench",
     "author": "Dazzy Ding",
     "link": "https://github.com/yukixz",
-    "deszh-CN": "查看装备改修信息",
-    "deszh-TW": "檢視裝備修改訊息",
-    "desja-JP": "簡易装備改修表",
-    "desen-US": "Show possible improvements of the day",
+    "deszh-CN": "查看装备改修信息，基于[是谁呼叫舰队](https://fleet.moe)数据",
+    "deszh-TW": "檢視裝備修改訊息，基於[是谁呼叫舰队](https://fleet.moe)數據",
+    "desja-JP": "簡易装備改修表、データは [WhoCallsTheFleet](https://fleet.moe) によって提供されています。",
+    "desen-US": "Show possible improvements of the day based on data from [WhoCallsTheFleet](https://fleet.moe)",
     "desko-KR": "간이 장비 개수표"
   },
   "poi-plugin-item-info": {
@@ -124,7 +124,7 @@
     "deszh-CN": "点击出击后才能获得数据",
     "deszh-TW": "點選出擊後才能獲得資料",
     "desja-JP": "出撃ボタンをクリックすることでデータを表示します",
-    "desen-US": "Click Sortie to get infromation",
+    "desen-US": "Click Sortie to get information",
     "desko-KR": "해역 목록을 볼 때 데이터가 갱신됩니다."
   },
   "poi-plugin-new-window": {
@@ -156,7 +156,7 @@
     "deszh-CN": "战况预知",
     "deszh-TW": "戰況預知",
     "desja-JP": "戦况予知",
-    "desen-US": "Sortie Prophet",
+    "desen-US": "Battle result prediction",
     "desko-KR": "전투 예측"
   },
   "poi-plugin-quest-info": {
@@ -169,11 +169,11 @@
     "icon": "indent",
     "author": "马里酱",
     "link": "https://github.com/malichan",
-    "deszh-CN": "任务信息查询 & 任务面板强化",
-    "deszh-TW": "任務信息查詢 & 任務面板強化",
-    "desja-JP": "任務攻略データや開放条件一覧",
-    "desen-US": "Show task infomation & improve task panel",
-    "desko-KR": "임무 공략 데이터 & 개방 조건"
+    "deszh-CN": "任务信息查询 & 任务面板强化，感谢 [舰娘百科](https://zh.kcwiki.org) 维护数据。",
+    "deszh-TW": "任務信息查詢 & 任務面板強化，感謝 [艦娘百科](https://zh.kcwiki.org) 維護數據。",
+    "desja-JP": "任務攻略データや任務パネルの強化、データは [kcwiki](https://zh.kcwiki.org) によって提供されている。",
+    "desen-US": "Show task infomation & enhance task panel, Data maintained by [kcwiki](https://zh.kcwiki.org).",
+    "desko-KR": "임무 공략 데이터 & 개방 조건. 데이터 제공되어 [kcwiki](https://zh.kcwiki.org)."
   },
   "poi-plugin-report": {
     "zh-CN": "数据汇报",
@@ -187,9 +187,9 @@
     "link": "https://github.com/magicae",
     "deszh-CN": "汇报建造数据、海域掉落数据、开发数据",
     "deszh-TW": "匯報建造數據、海域掉落數據、開發數據",
-    "desja-JP": "統計データベース(http://db.kcwiki.moe)登録用ツール",
-    "desen-US": "Report data to database(http://db.kcwiki.moe)",
-    "desko-KR": "통계 DB(http://db.kcwiki.moe) 데이터 보고용"
+    "desja-JP": "統計データベース(http://db.kcwiki.org)登録用ツール",
+    "desen-US": "Report data to database(http://db.kcwiki.org)",
+    "desko-KR": "통계 DB(http://db.kcwiki.org) 데이터 보고용"
   },
   "poi-plugin-kcwiki-report": {
     "zh-CN": "舰娘百科数据收集",
@@ -201,11 +201,11 @@
     "icon": "pie-chart",
     "author": "grzhan",
     "link": "https://github.com/grzhan",
-    "deszh-CN": "舰娘百科(http://zh.kcwiki.moe)数据汇报",
-    "deszh-TW": "艦娘百科(http://zh.kcwiki.moe)數據匯報",
-    "desja-JP": "統計データベース(http://zh.kcwiki.moe)登録用ツール",
-    "desen-US": "Report data to database(http://zh.kcwiki.moe)",
-    "desko-KR": "통계 DB(http://zh.kcwiki.moe) 데이터 보고용"
+    "deszh-CN": "[舰娘百科](http://zh.kcwiki.org) 数据汇报",
+    "deszh-TW": "[艦娘百科](http://zh.kcwiki.org) 數據匯報",
+    "desja-JP": "[kcwiki](http://zh.kcwiki.org) 統計データベース登録用ツール",
+    "desen-US": "Report data to [kcwiki](http://zh.kcwiki.org) database",
+    "desko-KR": "통계 [kcwiki](http://zh.kcwiki.org) db 데이터 보고용"
   },
   "poi-plugin-ship-info": {
     "zh-CN": "舰娘信息",
@@ -268,8 +268,8 @@
     "deszh-CN": "舰娘老黄历改二移植版，在此感谢原作者 HY Little",
     "deszh-TW": "艦娘老黃曆改二移植版，在此感謝原作者 HY Little",
     "desja-JP": "中國語のアルマナック",
-    "desen-US": "An Chinese almanac",
-    "desko-KR": "An Chinese almanac"
+    "desen-US": "A Chinese almanac",
+    "desko-KR": "A Chinese almanac"
   },
   "poi-plugin-translator": {
     "zh-CN": "英语翻译",
@@ -313,11 +313,11 @@
     "icon": "microphone",
     "author": "grzhan",
     "link": "https://github.com/grzhan",
-    "deszh-CN": "语音字幕插件（舰娘百科支持）",
-    "deszh-TW": "語音字幕插件（艦娘百科支援）",
-    "desja-JP": "艦娘セリフの字幕",
-    "desen-US": "Subtitle of ship girls' quotes",
-    "desko-KR": "중국어 자막"
+    "deszh-CN": "在舰娘说话时显示语音字幕。由 [舰娘百科](http://zh.kcwiki.org) 开发维护。",
+    "deszh-TW": "在艦娘說話時顯示語音字幕。由 [艦娘百科](http://zh.kcwiki.org) 開發維護。",
+    "desja-JP": "艦娘セリフの字幕。[kcwiki](http://zh.kcwiki.org) によって開発された。",
+    "desen-US": "Subtitle of ship girls' quotes, developed by [kcwiki](http://zh.kcwiki.org)",
+    "desko-KR": "중국어 자막. [kcwiki](http://zh.kcwiki.org) 에 의해 개발."
   },
   "poi-plugin-k2badge": {
     "zh-CN": "签名生成",
@@ -329,10 +329,106 @@
     "icon": "photo",
     "author": "KochiyaOcean",
     "link": "https://github.com/KochiyaOcean",
-    "deszh-CN": "传输舰娘数据至 http://threebards.com/kaini 以生成舰娘签名",
-    "deszh-TW": "傳輸艦娘資料至 http://threebards.com/kaini 以生成艦娘簽名",
-    "desja-JP": "艦娘のデータを http://threebards.com/kaini へ転送し、バッジを作成する",
-    "desen-US": "Export data to http://threebards.com/kaini so that you can make a badge for yourself!",
-    "desko-KR": "데이터를 http://threebards.com/kaini로 전송해서 배지를 만드는 플러그인"
+    "deszh-CN": "自动生成来自 [Sanya.moe](http://www.sanya.moe/kcbadge) 的舰娘签名，包含改二进度和图鉴列表。",
+    "deszh-TW": "自動生成來自 [Sanya.moe](http://www.sanya.moe/kcbadge) 的艦娘簽名，包含改二進度和圖鑑列表。",
+    "desja-JP": "自動的に改二と図鑑が含ま [Sanya.moe](http://www.sanya.moe/kcbadge) バッジを生成。",
+    "desen-US": "Automatically generates [Sanya.moe](http://www.sanya.moe/kcbadge) badge that shows your kaini progress and colletion progress.",
+    "desko-KR": "데이터를 [Sanya.moe](http://www.sanya.moe/kcbadge) 로 전송해서 배지를 만드는 플러그인"
+  },
+  "poi-plugin-anchorage-repair": {
+    "zh-CN": "泊地修理",
+    "zh-TW": "泊地修理",
+    "ja-JP": "泊地修理",
+    "en-US": "Anchorage repair",
+    "ko-KR": "Anchorage repair",
+    "version": "v0.0.0",
+    "icon": "anchor",
+    "author": "かがみ",
+    "link": "https://github.com/kagamichan",
+    "deszh-CN": "明石泊地修理助手",
+    "deszh-TW": "明石泊地修理助手",
+    "desja-JP": "明石の泊地修理の助手ちゃん",
+    "desen-US": "A plugin to help in Akashi's anchorage repair arrangement",
+    "desko-KR": "A plugin to help in Akashi's anchorage repair arrangement"
+  },
+  "poi-plugin-ezexped": {
+    "zh-CN": "易及远征",
+    "zh-TW": "易及遠征",
+    "ja-JP": "イージー遠征",
+    "en-US": "EZ Exped",
+    "ko-KR": "EZ Exped",
+    "version": "v0.0.0",
+    "icon": "check-square-o",
+    "author": "Javran",
+    "link": "https://github.com/Javran",
+    "deszh-CN": "远征条件检查与精确收入预测",
+    "deszh-TW": "遠征條件檢查與精確收入預測",
+    "desja-JP": "遠征報酬早見表",
+    "desen-US": "Expedition made easy",
+    "desko-KR": "Expedition made easy"
+  },
+  "poi-plugin-leveling": {
+    "zh-CN": "舰步如飞",
+    "zh-TW": "艦步如飛",
+    "ja-JP": "Leveling",
+    "en-US": "Leveling",
+    "ko-KR": "Leveling",
+    "version": "v0.0.0",
+    "icon": "angle-double-up",
+    "author": "Javran",
+    "link": "https://github.com/Javran",
+    "deszh-CN": "舰娘练级规划管理（舰娘属性信息来自[是谁呼叫舰队](https://github.com/Diablohu/WhoCallsTheFleet)）",
+    "deszh-TW": "艦娘練級規劃管理（艦娘屬性信息來自[是誰呼叫艦隊](https://github.com/Diablohu/WhoCallsTheFleet)）",
+    "desja-JP": "Ship Leveling Planner (ship stat info extracted from [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet))",
+    "desen-US": "Ship Leveling Planner (ship stat info extracted from [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet))",
+    "desko-KR": "Ship Leveling Planner (ship stat info extracted from [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet))"
+  },
+  "poi-plugin-navy-album": {
+    "zh-CN": "海色相簿",
+    "zh-TW": "海色相簿",
+    "ja-JP": "海色アルバム",
+    "en-US": "Navy Album",
+    "ko-KR": "Navy Album",
+    "version": "v0.0.0",
+    "icon": "th-list",
+    "author": "Javran",
+    "link": "https://github.com/Javran",
+    "deszh-CN": "舰娘与装备资料库（舰娘属性信息来自[是谁呼叫舰队](https://github.com/Diablohu/WhoCallsTheFleet)）",
+    "deszh-TW": "艦娘與裝備資料庫（艦娘屬性信息來自[是誰呼叫艦隊](https://github.com/Diablohu/WhoCallsTheFleet)）",
+    "desja-JP": "艦娘と装備のデータベース（データは [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet) によって提供されている）",
+    "desen-US": "Ship & Equipment database (ship stat info extracted from [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet))",
+    "desko-KR": "Ship & Equipment database (ship stat info extracted from [WhoCallsTheFleet](https://github.com/Diablohu/WhoCallsTheFleet))"
+  },
+  "poi-plugin-mo2": {
+    "zh-CN": "士气速查",
+    "zh-TW": "士氣速查",
+    "ja-JP": "Morale Monitor",
+    "en-US": "Morale Monitor",
+    "ko-KR": "Morale Monitor",
+    "version": "v0.0.0",
+    "icon": "smile-o",
+    "author": "Javran",
+    "link": "https://github.com/Javran",
+    "deszh-CN": "舰队与舰娘士气值速查",
+    "deszh-TW": "艦隊與艦娘士氣值速查",
+    "desja-JP": "艦隊と艦娘のコンディション値早見",
+    "desen-US": "Monitoring morale for your fleets and ships",
+    "desko-KR": "Monitoring morale for your fleets and ships"
+  },
+  "poi-plugin-lock-reminder": {
+    "zh-CN": "新舰力保",
+    "zh-TW": "新艦提醒",
+    "ja-JP": "新艦入手通知",
+    "en-US": "New Ship Reminder",
+    "ko-KR": "New Ship Reminder",
+    "version": "v0.0.0",
+    "icon": "lock",
+    "author": "SoraYama",
+    "link": "https://github.com/SoraYama",
+    "deszh-CN": "新舰上锁提醒",
+    "deszh-TW": "新艦上鎖提醒",
+    "desja-JP": "新艦娘がロックされない場合に通知する",
+    "desen-US": "Reminder for locking new ship",
+    "desko-KR": "Reminder for locking new ship"
   }
 }

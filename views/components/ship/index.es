@@ -1,109 +1,136 @@
-import { join } from 'path-extra'
+/* global getStore */
 import { connect } from 'react-redux'
-import classNames from 'classnames'
-import React, { Component, PropTypes } from 'react'
-import { Panel, Button, ButtonGroup } from 'react-bootstrap'
+import React, { Component } from 'react'
+import PropTypes from 'prop-types'
 import FontAwesome from 'react-fontawesome'
-import { get, memoize } from 'lodash'
+import { get, memoize, times } from 'lodash'
 import { createSelector } from 'reselect'
+import { withNamespaces, Trans } from 'react-i18next'
+import { Button, ResizeSensor } from '@blueprintjs/core'
+import { compose } from 'redux'
 
-const {i18n, dbg} = window
-const __ = i18n.main.__.bind(i18n.main)
-
-import { ShipRow } from './shipitem'
-import TopAlert from 'views/components/ship-parts/topalert'
+import { ShipRow } from './ship-item'
+import { SquardRow } from './lbac-view'
+import { LandbaseButton } from '../ship-parts/landbase-button'
+import { FleetStat } from 'views/components/ship-parts/fleet-stat'
 import {
   fleetNameSelectorFactory,
   fleetStateSelectorFactory,
   fleetShipsIdSelectorFactory,
 } from 'views/utils/selectors'
+import { getFleetIntent, DEFAULT_FLEET_NAMES } from 'views/utils/game-utils'
+import {
+  ShipCard,
+  ShipWrapper,
+  ShipTabContainer,
+  ShipTabContent,
+  ShipDeck,
+  ShipDetails,
+  AirbaseArea,
+  FleetNameButtonContainer,
+  FleetNameButton,
+} from 'views/components/ship-parts/styled-components'
 
-function getStyle(state, disabled) {
-  if (state >= 0 && state <= 5 && !disabled)
-    // 0: Cond >= 40, Supplied, Repaired, In port
-    // 1: 20 <= Cond < 40, or not supplied, or medium damage
-    // 2: Cond < 20, or heavy damage
-    // 3: Repairing
-    // 4: In mission
-    // 5: In map
-    return ['success', 'warning', 'danger', 'info', 'primary', 'default'][state]
-  else
-    return 'default'
-}
+const shipRowWidthSelector = state => get(state, 'layout.shippane.width', 450)
 
-const defaultFleetNames = ['I', 'II', 'III', 'IV']
-
-const shipViewSwitchButtonDataSelectorFactory = memoize((fleetId) =>
-  createSelector([
-    fleetNameSelectorFactory(fleetId),
-    fleetStateSelectorFactory(fleetId),
-  ], (fleetName, fleetState) => ({
-    fleetState,
-    fleetName,
-  }))
+const shipViewSwitchButtonDataSelectorFactory = memoize(fleetId =>
+  createSelector(
+    [fleetNameSelectorFactory(fleetId), fleetStateSelectorFactory(fleetId)],
+    (fleetName, fleetState) => ({
+      fleetState,
+      fleetName,
+    }),
+  ),
 )
-const ShipViewSwitchButton = connect(
-  (state, {fleetId}) =>
-    shipViewSwitchButtonDataSelectorFactory(fleetId)(state)
-)(({fleetId, activeFleetId, fleetName, fleetState, onClick, disabled}) =>
+
+const ShipViewSwitchButton = connect((state, { fleetId }) =>
+  shipViewSwitchButtonDataSelectorFactory(fleetId)(state),
+)(({ fleetId, activeFleetId, fleetName, fleetState, onClick, disabled }) => (
   <Button
-    bsSize="small"
-    bsStyle={getStyle(fleetState, disabled)}
+    intent={getFleetIntent(fleetState, disabled)}
     onClick={onClick}
     disabled={disabled}
-    className={fleetId == activeFleetId ? 'active' : ''}
+    active={fleetId == activeFleetId}
   >
-    {fleetName || defaultFleetNames[fleetId]}
+    {fleetName || DEFAULT_FLEET_NAMES[fleetId]}
   </Button>
+))
+
+const fleetShipViewDataSelectorFactory = memoize(fleetId =>
+  createSelector(
+    [fleetShipsIdSelectorFactory(fleetId)],
+    shipsId => ({
+      shipsId,
+    }),
+  ),
 )
 
-
-const fleetShipViewDataSelectorFactory = memoize((fleetId) =>
-  createSelector([
-    fleetShipsIdSelectorFactory(fleetId),
-  ], (shipsId) => ({
-    shipsId,
-  }))
-)
-const FleetShipView = connect(
-  (state, {fleetId}) =>
-    fleetShipViewDataSelectorFactory(fleetId)(state)
-)(({fleetId, shipsId}) =>
-  <div>
-    <div className='fleet-name'>
-      <TopAlert
-        fleetId={fleetId}
-        isMini={false}
-      />
+const FleetShipView = connect((state, { fleetId }) =>
+  fleetShipViewDataSelectorFactory(fleetId)(state),
+)(({ fleetId, shipsId, enableAvatar, width }) => (
+  <>
+    <div className="fleet-name">
+      <FleetStat fleetId={fleetId} isMini={false} />
     </div>
-    <div className={"ship-details"}>
-    {
-      (shipsId || []).map((shipId, i) =>
-        <ShipRow
-          key={shipId}
-          shipId={shipId}
-          />
-      )
-    }
-    </div>
-  </div>
-)
+    <ShipDetails className="ship-details">
+      {(shipsId || []).map((shipId, i) => (
+        <ShipRow key={shipId} shipId={shipId} enableAvatar={enableAvatar} compact={width < 480} />
+      ))}
+    </ShipDetails>
+  </>
+))
 
+const LBView = compose(
+  withNamespaces(['resources']),
+  connect(state => ({
+    areaIds: get(state, 'info.airbase', []).map(a => a.api_area_id),
+    mapareas: get(state, 'const.$mapareas', {}),
+  })),
+)(({ areaIds, mapareas, t, enableAvatar, width }) => (
+  <ShipDetails className="ship-details">
+    {areaIds.map(
+      (id, i) =>
+        mapareas[id] != null &&
+        (id === areaIds[i - 1] ? (
+          <SquardRow key={i} squardId={i} enableAvatar={enableAvatar} compact={width < 480} />
+        ) : (
+          <React.Fragment key={i}>
+            <AirbaseArea className="airbase-area">
+              [{id}] {mapareas[id] ? t(`resources:${mapareas[id].api_name}`) : ''}
+            </AirbaseArea>
+            <SquardRow key={i} squardId={i} enableAvatar={enableAvatar} compact={width < 480} />
+          </React.Fragment>
+        )),
+    )}
+  </ShipDetails>
+))
 
-const ShipView = connect((state, props) => ({
+@connect((state, props) => ({
   enableTransition: get(state, 'config.poi.transition.enable', true),
   fleetCount: get(state, 'info.fleets.length', 4),
-})
-)(class ShipView extends Component {
+  activeFleetId: get(state, 'ui.activeFleetId', 0),
+  airBaseCnt: get(state, 'info.airbase.length', 0),
+  enableAvatar: get(state, 'config.poi.appearance.avatar', true),
+  width: shipRowWidthSelector(state),
+}))
+export class reactClass extends Component {
   static propTypes = {
     enableTransition: PropTypes.bool.isRequired,
     fleetCount: PropTypes.number.isRequired,
     activeFleetId: PropTypes.number.isRequired,
+    airBaseCnt: PropTypes.number.isRequired,
+    enableAvatar: PropTypes.bool,
+    width: PropTypes.number,
   }
 
-  static contextTypes = {
-    selectTab: PropTypes.func.isRequired,
-    selectFleet: PropTypes.func.isRequired,
+  static getDerivedStateFromProps(props, state) {
+    if (props.activeFleetId !== state.activeFleetId) {
+      return {
+        prevFleetId: state.activeFleetId,
+        activeFleetId: props.activeFleetId,
+      }
+    }
+    return null
   }
 
   constructor(props) {
@@ -111,65 +138,131 @@ const ShipView = connect((state, props) => ({
     this.nowTime = 0
   }
 
-  componentWillUpdate(nextProps, nextState) {
-    this.nowTime = (new Date()).getTime()
-  }
-  componentDidUpdate(prevProps, prevState) {
-    const cur = Date.now()
-    dbg.extra('moduleRenderCost').log(`the cost of ship-module render: ${cur-this.nowTime}ms`)
+  state = {
+    activeFleetId: this.props.activeFleetId,
+    prevFleetId: null,
   }
 
-  handleClick = (idx) => {
-    if (idx != this.props.activeFleetId) {
-      this.context.selectFleet(idx)
+  handleTransitionEnd = i => {
+    if (i === this.state.prevFleetId) {
+      this.setState({ prevFleetId: null })
+    }
+  }
+
+  handleClick = idx => {
+    if (idx != this.state.activeFleetId) {
+      this.props.dispatch({
+        type: '@@TabSwitch',
+        tabInfo: {
+          activeFleetId: idx,
+        },
+      })
     }
   }
 
   changeMainView = () => {
-    this.context.selectTab('mainView')
+    this.props.dispatch({
+      type: '@@TabSwitch',
+      tabInfo: {
+        activeMainTab: 'main-view',
+      },
+    })
+  }
+
+  handleResize = entries => {
+    entries.forEach(entry => {
+      const { width, height } = entry.contentRect
+      if (
+        width !== 0 &&
+        height !== 0 &&
+        (width !== getStore('layout.shippane.width') ||
+          height !== getStore('layout.shippane.height'))
+      ) {
+        this.props.dispatch({
+          type: '@@LayoutUpdate',
+          value: {
+            shippane: {
+              width,
+              height,
+            },
+          },
+        })
+      }
+    })
   }
 
   render() {
+    const { activeFleetId, prevFleetId } = this.state
     return (
-      <Panel onDoubleClick={this.changeMainView}>
-        <link rel="stylesheet" href={join(__dirname, 'assets', 'ship.css')} />
-        <div className="panel-row">
-          <ButtonGroup className="fleet-name-button">
-          {
-            [0, 1, 2, 3].map((i) =>
-              <ShipViewSwitchButton
-                key={i}
-                fleetId={i}
-                disabled={i + 1 > this.props.fleetCount}
-                onClick={this.handleClick.bind(this, i)}
-                activeFleetId={this.props.activeFleetId}
+      <ShipWrapper className="ship-wrapper">
+        <ShipCard onDoubleClick={this.changeMainView} className="ship-card">
+          <FleetNameButtonContainer className="div-row fleet-name-button-container">
+            <FleetNameButton className="fleet-name-button">
+              {times(4).map(i => (
+                <ShipViewSwitchButton
+                  key={i}
+                  fleetId={i}
+                  disabled={i + 1 > this.props.fleetCount}
+                  onClick={e => this.handleClick(i)}
+                  activeFleetId={activeFleetId}
                 />
-            )
-          }
-          </ButtonGroup>
-        </div>
-        <div className="no-scroll">
-          <div
-            className={classNames("ship-tab-content", {'ship-tab-content-transition': this.props.enableTransition})}
-            style={{left: `-${this.props.activeFleetId}00%`}}>
-          {
-            [0, 1, 2, 3].map((i) =>
-              <div className="ship-deck" key={i}>
-                <FleetShipView fleetId={i} />
-              </div>
-            )
-          }
-          </div>
-        </div>
-      </Panel>
+              ))}
+            </FleetNameButton>
+            <LandbaseButton
+              key={4}
+              fleetId={4}
+              disabled={this.props.airBaseCnt === 0}
+              onClick={e => this.handleClick(4)}
+              activeFleetId={activeFleetId}
+              isMini={false}
+            />
+          </FleetNameButtonContainer>
+          <ResizeSensor onResize={this.handleResize}>
+            <ShipTabContainer className="ship-tab-container">
+              <ShipTabContent className="ship-tab-content">
+                {times(4).map(i => (
+                  <ShipDeck
+                    className="ship-deck"
+                    onTransitionEnd={() => this.handleTransitionEnd(i)}
+                    key={i}
+                    transition={
+                      this.props.enableTransition && (activeFleetId === i || prevFleetId === i)
+                    }
+                    active={activeFleetId === i || prevFleetId === i}
+                    left={activeFleetId > i}
+                    right={activeFleetId < i}
+                  >
+                    <FleetShipView
+                      fleetId={i}
+                      enableAvatar={this.props.enableAvatar}
+                      width={this.props.width}
+                    />
+                  </ShipDeck>
+                ))}
+                <ShipDeck
+                  className="ship-deck ship-lbac"
+                  onTransitionEnd={() => this.handleTransitionEnd(4)}
+                  key={4}
+                  transition={
+                    this.props.enableTransition && (activeFleetId === 4 || prevFleetId === 4)
+                  }
+                  active={activeFleetId === 4 || prevFleetId === 4}
+                  left={activeFleetId > 4}
+                  right={activeFleetId < 4}
+                >
+                  <LBView enableAvatar={this.props.enableAvatar} width={this.props.width} />
+                </ShipDeck>
+              </ShipTabContent>
+            </ShipTabContainer>
+          </ResizeSensor>
+        </ShipCard>
+      </ShipWrapper>
     )
   }
-})
-
-export default {
-  name: 'ShipView',
-  priority: 100000.1,
-  displayName: <span><FontAwesome key={0} name='bars' />{__(' Fleet')}</span>,
-  description: '舰队展示页面，展示舰队详情信息',
-  reactClass: ShipView,
 }
+
+export const displayName = (
+  <span>
+    <FontAwesome key={0} name="bars" /> <Trans>main:Fleet</Trans>
+  </span>
+)

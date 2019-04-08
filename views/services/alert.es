@@ -1,6 +1,4 @@
-const {dispatch} = window
-
-const DEFAULT_STICKYFOR = 3*1000  // Milliseconds
+const DEFAULT_STICKYFOR = 3 * 1000 // Milliseconds
 
 function dispatchAlertEvent(value) {
   const event = new CustomEvent('alert.new', {
@@ -44,7 +42,7 @@ window.warn = (msg, options) => {
 window.error = (msg, options) => {
   const value = {
     content: msg,
-    type: 'warning',
+    type: 'danger',
     priority: 4,
     stickyFor: DEFAULT_STICKYFOR,
     ...options,

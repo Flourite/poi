@@ -1,16 +1,20 @@
-import {combineReducers} from 'redux'
-import reduceReducers from 'reduce-reducers'
+import { combineReducers } from '../combine-reducers'
+import reduceReducers from '../reduce-reducers'
 import { get, pick } from 'lodash'
 
-import {reducer as basic} from './basic'
-import {reducer as ships} from './ships'
-import {reducer as fleets} from './fleets'
-import {reducer as equips} from './equips'
-import {reducer as repairs} from './repairs'
-import {reducer as constructions} from './constructions'
-import {reducer as resources} from './resources'
-import {reducer as maps} from './maps'
-import {reducer as quests} from './quests'
+import { reducer as basic } from './basic'
+import { reducer as ships } from './ships'
+import { reducer as fleets } from './fleets'
+import { reducer as equips } from './equips'
+import { reducer as repairs } from './repairs'
+import { reducer as constructions } from './constructions'
+import { reducer as resources } from './resources'
+import { reducer as maps } from './maps'
+import { reducer as quests } from './quests'
+import { reducer as server } from './server'
+import { reducer as useitems } from './useitems'
+import airbase from './airbase'
+import presets from './presets'
 
 export const reducer = reduceReducers(
   (state, action) => {
@@ -33,5 +37,9 @@ export const reducer = reduceReducers(
     resources,
     maps,
     quests,
+    airbase,
+    presets,
+    server,
+    useitems,
   }),
 )

@@ -1,13 +1,14 @@
 {
-  "Preferences...": "環境設定...",
+  "Preferences": "環境設定...",
   "Services": "サービス",
   "About poi": "poiについて",
   "Hide poi": "poiを隠す",
   "Show poi": "poiを表示",
   "Hide others": "ほかを隠す",
   "Show All": "すべてを表示",
-  "Always on top": "ウィンドウを常に最前面に表示する",
+  "Always on top": "ウィンドウを常に手前に表示する",
   "Resizable": "ウィンドウサイズの変更を許可",
+  "Reset Views": "ウィンドウサイズをリセット",
   "Confirm before exit": "終了する前に警告メッセージを表示する",
   "Quit poi": "poiを終了",
   "Edit": "編集",
@@ -32,7 +33,8 @@
   "Bring All to Front": "すべてを手前に移動",
   "Help": "ヘルプ",
   "Wiki": "ウィキ" ,
-  "Poi Statistics": "poi統計データベースツール",
+  "poi Statistics": "poi 統計データベースツール",
   "Report Issue": "問題の報告",
-  "Search Issues": "問題を検索"
+  "Search Issues": "問題を検索",
+  "Enable Vibrance": "バイブランス"
 }

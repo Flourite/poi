@@ -1,21 +1,33 @@
-import React from 'react'
+/* global $, getStore */
+
+import React, { Component } from 'react'
 import ReactDOM from 'react-dom'
-import fs from 'fs-extra'
-import path from 'path-extra'
-import { Provider } from 'react-redux'
+import { connect, Provider } from 'react-redux'
+import { remote, webFrame } from 'electron'
+import { get } from 'lodash'
+import { I18nextProvider } from 'react-i18next'
+import { ThemeProvider } from 'styled-components'
+import { ResizeSensor, Popover } from '@blueprintjs/core'
+
+import '../assets/css/app.css'
+import '../assets/css/global.css'
 
 import { store } from './create-store'
-import ControlledTabArea from './tabarea'
-import { PoiAlert } from './components/info/alert'
-import PoiMapReminder from './components/info/map-reminder'
-import { PoiControl } from './components/info/control'
-import { Toastr } from './components/info/toastr'
+import { WindowEnv } from './components/etc/window-env'
 import { ModalTrigger } from './components/etc/modal'
+import { BasicAuth } from './utils/http-basic-auth'
+import { TitleBarWrapper } from './components/etc/menu'
+import { KanGameWrapper } from './kan-game-wrapper'
+import { KanGameWindowWrapper } from './kan-game-window-wrapper'
+import { PoiApp } from './poi-app'
+import i18next from './env-parts/i18next'
+import { darkTheme, lightTheme } from './theme'
+import { POPOVER_MODIFIERS } from './utils/tools'
 
-const {ROOT, EXROOT, $} = window
+const config = remote.require('./lib/config')
 
 // Disable OSX zoom
-require('electron').webFrame.setZoomLevelLimits(1, 1)
+webFrame.setVisualZoomLevelLimits(1, 1)
 
 // Hackable panels
 window.hack = {}
@@ -23,46 +35,83 @@ window.hack = {}
 // Alert functions
 require('./services/alert')
 
-// Module path
-require('module').globalPaths.push(path.join(ROOT, "node_modules"))
+// configure Popover (including Tooltip)
+// ATTENTION default props will be overriden by providing props
+Popover.defaultProps.modifiers = POPOVER_MODIFIERS
+Popover.defaultProps.boundary = 'viewport'
 
-// poi menu
-require('./components/etc/menu')
+@connect(state => ({
+  isHorizontal: get(state, 'config.poi.layout.mode', 'horizontal') === 'horizontal',
+  reversed: get(state, 'config.poi.layout.reverse', false),
+  isolateGameWindow: get(state, 'config.poi.layout.isolate', false),
+  theme: get(state, 'config.poi.appearance.theme', 'dark'),
+}))
+class Poi extends Component {
+  handleResize = entries => {
+    entries.forEach(entry => {
+      const { width, height } = entry.contentRect
+      if (
+        width !== 0 &&
+        height !== 0 &&
+        (width !== getStore('layout.window.width') || height !== getStore('layout.window.height'))
+      ) {
+        this.props.dispatch({
+          type: '@@LayoutUpdate',
+          value: {
+            window: {
+              width,
+              height,
+            },
+          },
+        })
+      }
+    })
+  }
 
-const CustomCssInjector = () => {
-  let cssPath = path.join(EXROOT, 'hack', 'custom.css')
-  fs.ensureFileSync(cssPath)
-  return (
-    <link rel='stylesheet' id='custom-css' href={cssPath} />
-  )
+  render() {
+    const { isHorizontal, reversed, theme } = this.props
+    return (
+      <ThemeProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
+        <>
+          {config.get(
+            'poi.appearance.customtitlebar',
+            process.platform === 'win32' || process.platform === 'linux',
+          ) && (
+            <title-bar>
+              <TitleBarWrapper />
+            </title-bar>
+          )}
+          <ResizeSensor onResize={this.handleResize}>
+            <poi-main
+              style={{
+                flexFlow: `${isHorizontal ? 'row' : 'column'}${reversed ? '-reverse' : ''} nowrap`,
+                ...(!isHorizontal && { overflow: 'hidden' }),
+              }}
+            >
+              {this.props.isolateGameWindow ? <KanGameWindowWrapper /> : <KanGameWrapper />}
+              <PoiApp />
+            </poi-main>
+          </ResizeSensor>
+          <ModalTrigger />
+          <BasicAuth />
+        </>
+      </ThemeProvider>
+    )
+  }
 }
 
-window.isMain = true
-
 ReactDOM.render(
-  <Provider store={store}>
-    <PoiControl />
-  </Provider>,
-  $('poi-control')
+  <I18nextProvider i18n={i18next}>
+    <Provider store={store}>
+      <WindowEnv.Provider
+        value={{
+          window,
+          mountPoint: document.body,
+        }}
+      >
+        <Poi />
+      </WindowEnv.Provider>
+    </Provider>
+  </I18nextProvider>,
+  $('#poi'),
 )
-ReactDOM.render(
-  <Provider store={store}>
-    <PoiAlert id='poi-alert' />
-  </Provider>,
-  $('poi-alert')
-)
-ReactDOM.render(
-  <Provider store={store}>
-    <PoiMapReminder id='poi-map-reminder'/>
-  </Provider>,
-  $('poi-map-reminder')
-)
-ReactDOM.render(
-  <Provider store={store}>
-    <ControlledTabArea />
-  </Provider>,
-  $('poi-nav-tabs')
-)
-ReactDOM.render(<ModalTrigger />, $('poi-modal-trigger'))
-ReactDOM.render(<Toastr />, $('poi-toast-trigger'))
-ReactDOM.render(<CustomCssInjector />, $('poi-css-injector'))

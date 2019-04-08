@@ -1,5 +1,5 @@
 {
-  "Preferences...": "設定...",
+  "Preferences": "設定...",
   "Services": "服務",
   "About poi": "關於poi",
   "Hide poi": "隱藏poi",
@@ -7,6 +7,7 @@
   "Hide others": "隱藏其他",
   "Show All": "全部顯示",
   "Always on top": "視窗置頂",
+  "Reset Views": "重置視窗和分辨率",
   "Resizable": "允許變更視窗大小",
   "Confirm before exit": "關閉前確認",
   "Quit poi": "退出poi",
@@ -32,7 +33,8 @@
   "Bring All to Front": "全部置前",
   "Help": "幫助",
   "Wiki": "Wiki" ,
-  "Poi Statistics": "poi掉落統計",
+  "poi Statistics": "poi 掉落統計",
   "Report Issue": "報告問題",
-  "Search Issues": "搜尋問題"
+  "Search Issues": "搜尋問題",
+  "Enable Vibrance": "半透明主題"
 }

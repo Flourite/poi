@@ -1,47 +1,107 @@
-import React from 'react'
-import { remote } from 'electron'
+/* global config */
+
+import React, { Component } from 'react'
+import i18next from 'views/env-parts/i18next'
+import { WindowEnv } from 'views/components/etc/window-env'
 import { debounce } from 'lodash'
+import styled, { keyframes, css } from 'styled-components'
+import { CustomTag } from 'views/components/etc/custom-tag'
 
-const {$, config} = window
-const {Component} = React
-const __ = window.i18n.others.__.bind(window.i18n.others)
-
-const alertStyle = document.createElement('style')
-const historyStyle = document.createElement('style')
-alertStyle.innerHTML = `
-  poi-alert {
-    height: 30px;
-  }
-  #alert-container {
-    height: 30px;
-  }
-  #alert-main {
-    height: 182px;
-    bottom: 152px;
-  }
-`
-historyStyle.innerHTML = `
-  .alert-history {
-    top: 182px;
-    pointer-events: 'none';
-  }
+const PoiAlertTag = styled(CustomTag)`
+  width: 0;
+  flex: 1;
+  height: 30px;
 `
 
-remote.getCurrentWindow().webContents.on('dom-ready', function(e) {
-  document.body.appendChild(alertStyle)
-  document.body.appendChild(historyStyle)
-})
+const Alert = styled.div`
+  margin-bottom: 0;
+  min-height: 100%;
+  opacity: 0.7;
+  padding: 6px 3px 5px 3px;
+  border-radius: 0;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+`
+
+const AlertLogContent = styled(Alert)`
+  overflow: scroll;
+  text-overflow: initial;
+`
+
+const AlertMain = styled.div`
+  height: 29px;
+  pointer-events: none;
+  position: relative;
+  transition: 0.3s;
+  width: 100%;
+  border-radius: 0;
+`
+
+const AlertContainer = styled(Alert)`
+  cursor: pointer;
+  height: 30px;
+  overflow: hidden;
+  pointer-events: auto;
+  position: relative;
+  transition: 0.3s;
+  z-index: 2;
+`
+
+const AlertLog = styled.div`
+  overflow: hidden;
+  transition: 0.3s;
+  z-index: 1;
+`
+
+const AlertPosition = styled.div`
+  margin-left: auto;
+  margin-right: auto;
+`
+
+const OverflowScroll = keyframes`
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  100% {
+    transform: translate3d(-100%, 0, 0);
+  }
+`
+
+const AlertArea = styled.span`
+  cursor: pointer;
+  ${({ overflow }) =>
+    overflow &&
+    css`
+      animation-delay: 2s;
+      animation-duration: 18s;
+      animation-iteration-count: 2;
+      animation-name: ${OverflowScroll};
+      animation-timing-function: linear;
+      display: block;
+      margin-left: 0;
+    `}
+`
 
 const initState = {
   overflow: false,
-  history: [0, 1, 2, 3, 4].map((index) => (<div key={index++} className='alert alert-default alert-history-contents'>　</div>)),
+  history: [0, 1, 2, 3, 4].map(index => (
+    <AlertLogContent key={index++} className="bp3-callout bp3-intent-default">
+      {' '}
+    </AlertLogContent>
+  )),
   current: {
     type: 'default',
-    content: __('Waiting for response...'),
+    content: i18next.t('Waiting for response'),
     priority: 0,
     options: {
       dontReserve: true,
     },
+  },
+  alertHistoryStyle: {
+    transform: 'translate3d(0, 1px, 0)',
+    pointerEvents: 'none',
   },
 }
 
@@ -49,16 +109,19 @@ let stickyEnd = Date.now()
 let updateTime = 0
 
 const pushToHistory = (history, toPush) => {
-  history.push(<div key={Date.now()} className={`alert alert-${toPush.type} alert-history-contents`}>{toPush.content}</div>)
+  history.push(
+    <AlertLogContent key={Date.now()} className={`bp3-callout bp3-intent-${toPush.type}`}>
+      {toPush.content}
+    </AlertLogContent>,
+  )
   if (history.length > 5) {
-    history.shift()
+    return history.slice(history.length - 5)
   }
   return history
 }
 
-export const PoiAlert = class poiAlert extends Component {
-  static propTypes = {
-  }
+class PoiAlertInner extends Component {
+  static propTypes = {}
   constructor(props) {
     super(props)
     this.showHistory = false
@@ -72,61 +135,44 @@ export const PoiAlert = class poiAlert extends Component {
   }
   toggleHistory = () => {
     this.showHistory = !this.showHistory
-    historyStyle.innerHTML = `
-      #alert-main {
-        overflow: ${this.showHistory ? 'auto' : 'hidden'};
-      }
-      .alert-history {
-        top: ${this.showHistory ? 0 : this.historyHeight + this.alertHeight}px;
-        pointer-events: ${this.showHistory ? 'auto' : 'none'};
-      }
-    `
+    this.setState({
+      alertHistoryStyle: {
+        transform: `translate3d(0, ${
+          this.showHistory ? -this.alertHeight - this.historyHeight + 1 : 1
+        }px, 0)`,
+        pointerEvents: this.showHistory ? 'auto' : 'none',
+      },
+    })
   }
   handleStyleChange = () => {
-    setTimeout(() => {
-      try {
-        const alertHeight =  $('poi-control').offsetHeight
-        const historyHeight = $('.alert-history').offsetHeight
-        const bgColor = window.getComputedStyle($('body')).backgroundColor
-        if (historyHeight === this.historyHeight && alertHeight === this.alertHeight && bgColor === this.bgColor) {
-          return
-        }
-        this.alertHeight = alertHeight
-        this.historyHeight = historyHeight
-        this.bgColor = bgColor
-      } catch (error) {
-        this.alertHeight = 30
-        this.historyHeight = 152
-      }
-      alertStyle.innerHTML = `
-        poi-alert {
-          height: ${this.alertHeight}px;
-        }
-        #alert-container.alert-default, .alert-history.panel {
-          background-color: ${this.bgColor};
-        }
-        #alert-container {
-          height: ${this.alertHeight}px;
-        }
-        #alert-main {
-          height: ${this.historyHeight + this.alertHeight}px;
-          bottom: ${this.historyHeight}px;
-        }
-        .alert-history-hidden {
-          top:
-        }
-        .alert-default {
-          ${(window.theme == 'paper' || window.theme == 'lumen') ? 'color: #000' : ''}
-        }
-      `
-    }, 100)
+    setTimeout(
+      () =>
+        requestIdleCallback(() => {
+          try {
+            const alertHeight = this.props.$('poi-control').offsetHeight
+            const historyHeight = this.alertHistory.offsetHeight
+            if (historyHeight === this.historyHeight && alertHeight === this.alertHeight) {
+              return
+            }
+            this.alertHeight = alertHeight
+            this.historyHeight = historyHeight
+          } catch (error) {
+            this.alertHeight = 30
+            this.historyHeight = 152
+          }
+        }),
+      100,
+    )
   }
-  handleAddAlert = (e) => {
-    const value = Object.assign({
-      type: 'default',
-      content: '',
-      priority: 0,
-    }, e.detail)
+  handleAddAlert = e => {
+    const value = Object.assign(
+      {
+        type: 'default',
+        content: '',
+        priority: 0,
+      },
+      e.detail,
+    )
     let { history, current } = this.state
     const nowTS = Date.now()
     if (value.priority < current.priority && nowTS < stickyEnd) {
@@ -137,8 +183,8 @@ export const PoiAlert = class poiAlert extends Component {
       }
     } else if (!current.dontReserve) {
       // push old message to history
-      history = pushToHistory(history, current)
       updateTime = value.stickyFor || 3000
+      history = pushToHistory(history, current)
       this.setState({
         history: history,
         current: value,
@@ -153,80 +199,106 @@ export const PoiAlert = class poiAlert extends Component {
     }
   }
   handleOverflow = () => {
-    const containerWidth = $('poi-alert').offsetWidth
-    if (!this.state.overflow) {
-      this.msgWidth = $('#alert-area').offsetWidth
-      $('.alert-position').style.width = `${this.msgWidth}px`
-    }
-    if ((this.msgWidth > containerWidth) && !this.state.overflow) {
-      $('.alert-position').style.width = `${this.msgWidth + 50}px`
-      this.setState({overflow: true})
-    } else if ((this.msgWidth < containerWidth) && this.state.overflow) {
-      $('.alert-position').style.width = `${this.msgWidth}px`
-      this.setState({overflow: false})
-    }
+    requestIdleCallback(() => {
+      const containerWidth = this.alertMain.offsetWidth
+      if (!this.state.overflow) {
+        this.msgWidth = this.alertArea.offsetWidth
+        this.alertPosition.style.width = `${this.msgWidth}px`
+      }
+      if (this.msgWidth > containerWidth && !this.state.overflow) {
+        this.alertPosition.style.width = `${this.msgWidth + 50}px`
+        this.setState({ overflow: true })
+      } else if (this.msgWidth < containerWidth && this.state.overflow) {
+        this.alertPosition.style.width = `${this.msgWidth}px`
+        this.setState({ overflow: false })
+      }
+    })
   }
   componentDidUpdate = (prevProps, prevState) => {
-    this.handleStyleChange()
     stickyEnd = Date.now() + updateTime
     updateTime = 0
+    this.handleStyleChange()
+    this.handleOverflow()
   }
   componentDidMount = () => {
+    this.handleOverflowDebounced = debounce(this.handleOverflow, 1000)
     config.addListener('config.set', (path, value) => {
-      if (path === 'poi.theme') {
+      if (path === 'poi.appearance.theme') {
         this.handleStyleChange()
       }
     })
-    this.observer = new MutationObserver(this.handleOverflow)
-    const target = $('#alert-area')
-    const options = {
-      childList: true,
-      attributes: true,
-      subtree: true,
-      characterData: true,
-    }
-    this.handleOverflowDebounced = debounce(this.handleOverflow, 100)
-    this.observer.observe(target, options)
+    this.observer = new ResizeObserver(this.handleOverflowDebounced)
+    this.observer.observe(this.alertMain)
     window.addEventListener('alert.new', this.handleAddAlert)
-    window.addEventListener('resize', this.handleOverflowDebounced)
-    window.addEventListener('alert.change', this.handleOverflow)
     this.handleStyleChange()
   }
   componentWillUnmount = () => {
+    this.observer.unobserve(this.alertMain)
     config.removeListener('config.set', this.handleStyleChange)
     window.removeEventListener('alert.new', this.handleAddAlert)
-    window.removeEventListener('resize', this.handleOverflowDebounced)
-    window.removeEventListener('alert.change', this.handleOverflow)
   }
   render() {
     return (
-      <div id='alert-main' className='alert-main'>
-        <div id='alert-history'
-             className='alert-history panel'
-             onClick={this.toggleHistory}>
-          {this.state.history}
-        </div>
-        <div id='alert-container'
-             className={`alert alert-${this.state.current.type} alert-container`}
-             onClick={this.toggleHistory}>
-          <div className='alert-position'>
-            <span id='alert-area' className={this.state.overflow ? 'overflow-anim' : ''}>
-              {
-                this.state.overflow ?
-                <span>
-                  <span style={{marginRight: 50}}>
-                    {this.state.current.content}
-                  </span>
-                  <span style={{marginRight: 50}}>
-                    {this.state.current.content}
-                  </span>
-                </span>
-                : this.state.current.content
-              }
-            </span>
-          </div>
-        </div>
-      </div>
+      <PoiAlertTag tag="poi-alert">
+        <AlertMain
+          id="alert-main"
+          className="alert-main bp3-popover"
+          ref={ref => {
+            this.alertMain = ref
+          }}
+        >
+          <AlertContainer
+            id="alert-container"
+            className={`bp3-callout bp3-intent-${this.state.current.type} alert-container`}
+            onClick={this.toggleHistory}
+          >
+            <AlertPosition
+              className="alert-position"
+              ref={ref => {
+                this.alertPosition = ref
+              }}
+            >
+              <AlertArea
+                id="alert-area"
+                ref={ref => {
+                  this.alertArea = ref
+                }}
+                overflow={this.state.overflow ? 1 : 0}
+              >
+                {this.state.overflow ? (
+                  <>
+                    <span style={{ marginRight: 50 }}>{this.state.current.content}</span>
+                    <span style={{ marginRight: 50 }}>{this.state.current.content}</span>
+                  </>
+                ) : (
+                  this.state.current.content
+                )}
+              </AlertArea>
+            </AlertPosition>
+          </AlertContainer>
+          <AlertLog
+            id="alert-log"
+            ref={ref => {
+              this.alertHistory = ref
+            }}
+            className="alert-log bp3-popover-content"
+            style={this.state.alertHistoryStyle}
+            onClick={this.toggleHistory}
+          >
+            {this.state.history}
+          </AlertLog>
+        </AlertMain>
+      </PoiAlertTag>
     )
   }
+}
+
+export function PoiAlert(...props) {
+  return (
+    <WindowEnv.Consumer>
+      {({ window }) => (
+        <PoiAlertInner {...props} $={(...arg) => window.document.querySelector(...arg)} />
+      )}
+    </WindowEnv.Consumer>
+  )
 }

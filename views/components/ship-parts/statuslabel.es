@@ -1,54 +1,52 @@
+/* global language */
 import React from 'react'
 import FontAwesome from 'react-fontawesome'
-import { OverlayTrigger, Tooltip, Label } from 'react-bootstrap'
+import { connect } from 'react-redux'
+import { isEqual, get } from 'lodash'
+import { withNamespaces } from 'react-i18next'
+import { Tooltip, Tag, Intent, Position } from '@blueprintjs/core'
 
-const {i18n} = window
-const __ = i18n.main.__.bind(i18n.main)
+const TEXTS = [['Retreated'], ['Repairing'], ['Resupply Needed']]
+const INTENTS = [Intent.WARNING, Intent.NONE, Intent.WARNING]
+const ICONS = ['reply', 'wrench', 'database']
 
-const texts = [
-  ['Retreated'],
-  ['Repairing'],
-  ['Ship tag: %s', 'E1'],
-  ['Ship tag: %s', 'E2'],
-  ['Ship tag: %s', 'E3'],
-  ['Ship tag: %s', ''],
-  ['Resupply needed'],
-]
-const styles = [
-  'danger',
-  'info',
-  'primary',
-  'success',
-  'info',
-  '',
-  'warning',
-]
-const icons = [
-  'exclamation-circle',
-  'wrench',
-  'tag',
-  'tag',
-  'tag',
-  'tag',
-  'database',
-]
+const initState = {
+  color: [],
+  mapname: [],
+}
 
-class StatusLabel extends React.Component {
-  shouldComponentUpdate = (nextProps, nextState) => (
-    nextProps.label !== this.props.label
-  )
+@withNamespaces(['main'])
+@connect(state => ({
+  shipTag: state.fcd.shiptag || initState,
+}))
+export class StatusLabel extends React.Component {
+  shouldComponentUpdate = (nextProps, nextState) =>
+    nextProps.label !== this.props.label || !isEqual(this.props.shipTag, nextProps.shipTag)
   render() {
-    const i = this.props.label
-    if (i != null && 0 <= i && i <= 6) {
+    const { label: i, t } = this.props
+    const { color, mapname, fleetname } = this.props.shipTag
+    if (i != null && 0 <= i) {
       return (
-        <OverlayTrigger placement="top" overlay={<Tooltip id={`statuslabel-status-${i}`}>{__(texts[i])}</Tooltip>}>
-          <Label bsStyle={styles[i]}><FontAwesome key={0} name={icons[i]} /></Label>
-        </OverlayTrigger>
+        <Tooltip
+          position={Position.TOP}
+          content={
+            i > 2
+              ? `${get(fleetname, [language, i - 3], t('main:Ship tag'))} - ${mapname[i - 3] ||
+                  i - 2}`
+              : t(`main:${TEXTS[i]}`)
+          }
+        >
+          <Tag
+            minimal
+            intent={INTENTS[i] || Intent.NONE}
+            style={i > 2 ? { color: color[i - 3] || '' } : {}}
+          >
+            <FontAwesome key={0} name={ICONS[i] || 'tag'} />
+          </Tag>
+        </Tooltip>
       )
     } else {
-      return <Label bsStyle="default" style={{opacity: 0}}></Label>
+      return <Tag minimal intent={Intent.NONE} style={{ opacity: 0 }} />
     }
   }
 }
-
-export default StatusLabel

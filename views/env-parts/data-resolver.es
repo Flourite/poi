@@ -1,13 +1,12 @@
+/* global dispatch */
 import { onGameRequest, onGameResponse } from 'views/redux'
 import { remote } from 'electron'
 
 const proxy = remote.require('./lib/proxy')
 
-const isGameApi = (pathname) =>
-  (pathname.startsWith('/kcsapi'))
+const isGameApi = pathname => pathname.startsWith('/kcsapi')
 
-const handleProxyGameOnRequest = (method, [domain, path], body) => {
-  const {dispatch} = window
+const handleProxyGameOnRequest = (method, [domain, path], body, time) => {
   if (!isGameApi(path)) {
     return
   }
@@ -18,11 +17,12 @@ const handleProxyGameOnRequest = (method, [domain, path], body) => {
       method: method,
       path: path,
       body: body,
+      time: time,
     }
-    try{
+    try {
       dispatch(onGameRequest(details))
     } catch (e) {
-      console.error(e.stack)
+      console.error(details, e.stack)
     }
     const event = new CustomEvent('game.request', {
       bubbles: true,
@@ -39,9 +39,8 @@ const responses = []
 let locked = false
 
 const parseResponses = () => {
-  const {dispatch} = window
-  let [method, [domain, path, url], body, postBody] = responses.shift()
-  if (['/kcs/mainD2.swf', '/kcsapi/api_start2', '/kcsapi/api_get_member/basic'].includes(path)) {
+  let [method, [domain, path, url], body, postBody, time] = responses.shift()
+  if (['/kcs2/js/main.js', '/kcsapi/api_start2/getData'].includes(path)) {
     handleProxyGameStart()
   }
   if (!isGameApi(path)) {
@@ -80,13 +79,14 @@ const parseResponses = () => {
     path: path,
     body: body,
     postBody: postBody,
+    time: time,
   }
 
   // Update redux store
   try {
     dispatch(onGameResponse(details))
   } catch (e) {
-    console.error(domain, url, e.stack)
+    console.error(domain, url, details, e.stack)
   }
 
   // DEBUG use
@@ -115,10 +115,10 @@ const resolveResponses = () => {
   locked = false
 }
 
-const handleProxyGameOnResponse = (method, [domain, path, url], body, postBody) => {
+const handleProxyGameOnResponse = (method, [domain, path, url], body, postBody, time) => {
   // Parse the json object
   try {
-    responses.push([method, [domain, path, url], JSON.parse(body), JSON.parse(postBody)])
+    responses.push([method, [domain, path, url], JSON.parse(body), JSON.parse(postBody), time])
     if (!locked) {
       resolveResponses()
     }
@@ -131,7 +131,7 @@ const handleProxyGameStart = () => {
   window.dispatchEvent(new Event('game.start'))
 }
 
-const handleProxyNetworkErrorRetry = ([domain, path, url], counter) =>{
+const handleProxyNetworkErrorRetry = ([domain, path, url], counter) => {
   if (!isGameApi(path)) {
     return
   }
@@ -146,15 +146,13 @@ const handleProxyNetworkErrorRetry = ([domain, path, url], counter) =>{
 }
 
 const handleProxyNetworkError = ([domain, path, url]) => {
-  if (url.startsWith('http://www.dmm.com/netgame/') || url.includes('/kcs/') || url.includes('/kcsapi/')) {
+  if (
+    url.startsWith('http://www.dmm.com/netgame/') ||
+    url.includes('/kcs2/') ||
+    url.includes('/kcsapi/')
+  ) {
     window.dispatchEvent(new Event('network.error'))
   }
-}
-
-const handleGetServer = (server) => {
-  window._serverIp = server.ip
-  window._serverId = server.num
-  window._serverName = server.name
 }
 
 const proxyListener = {
@@ -162,7 +160,6 @@ const proxyListener = {
   'network.on.response': handleProxyGameOnResponse,
   'network.error': handleProxyNetworkError,
   'network.error.retry': handleProxyNetworkErrorRetry,
-  'network.get.server': handleGetServer,
 }
 
 window.listenerStatusFlag = false
@@ -178,12 +175,12 @@ const addProxyListener = () => {
 
 addProxyListener()
 
-window.addEventListener ('load', () => {
+window.addEventListener('load', () => {
   addProxyListener()
 })
 
-window.addEventListener ('unload', () => {
-  if (window.listenerStatusFlag){
+window.addEventListener('unload', () => {
+  if (window.listenerStatusFlag) {
     window.listenerStatusFlag = false
     for (const eventName in proxyListener) {
       proxy.removeListener(eventName, proxyListener[eventName])

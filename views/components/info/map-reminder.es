@@ -1,76 +1,331 @@
 import React, { Component } from 'react'
-import { ProgressBar } from 'react-bootstrap'
+import { ProgressBar, Position, PopoverInteractionKind, Intent } from '@blueprintjs/core'
 import { createSelector } from 'reselect'
 import { connect } from 'react-redux'
-import { get } from 'lodash'
+import { get, map, zip, each } from 'lodash'
+import { withNamespaces } from 'react-i18next'
+import styled, { css, keyframes } from 'styled-components'
+import { rgba } from 'polished'
 
+import { MaterialIcon } from 'views/components/etc/icon'
 import {
   sortieMapDataSelector,
   sortieMapHpSelector,
-  extensionSelectorFactory,
+  fcdSelector,
+  currentNodeSelector,
 } from 'views/utils/selectors'
+import { CustomTag } from 'views/components/etc/custom-tag'
+import { Popover } from 'views/components/etc/overlay'
 
-const {i18n, toast} = window
-const __ = i18n.others.__.bind(i18n.others)
-const emptyFinalHps = {}
+const PoiMapReminderTag = styled(CustomTag)`
+  width: 0;
+  flex: 0 0 135px;
+`
 
-// Map Reminder
-export default connect(
-  createSelector([
-    sortieMapDataSelector,
-    sortieMapHpSelector,
-    extensionSelectorFactory('poi-plugin-map-hp'),
-  ], (mapData, mapHp, pluginMapHpData={}) => ({
-    mapId: get(mapData, '0.api_id'),
-    rank: get(mapData, '0.api_eventmap.api_selected_rank'),
-    mapData,
-    mapHp,
-    finalHps: pluginMapHpData.finalHps || emptyFinalHps,
-  }))
-)(class MapReminder extends Component {
-  static mapRanks = ['', ` ${__('丙')}`, ` ${__('乙')}`, ` ${__('甲')}`]
+const MapReminder = styled.div`
+  position: relative;
+  width: 135px;
+`
 
-  getMapText(mapData) {
-    if (!mapData)
-      return __('Not in sortie')
-    const {rank} = this.props
-    const {api_maparea_id, api_no} = mapData[1]
+const Alert = styled.div`
+  margin-bottom: 0;
+  min-height: 100%;
+  opacity: 0.7;
+  padding: 6px 3px 5px 3px;
+  border-radius: 0;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+`
 
-    const mapName = `${api_maparea_id}-${api_no}` +
-      (rank == null ? '' : this.constructor.mapRanks[rank])
-    return `${__('Sortie area')}: ${mapName}`
+const MapHPProgress = styled(ProgressBar)`
+  background-color: transparent;
+  border-radius: 0;
+  height: 3px;
+  position: absolute;
+  width: 100%;
+`
+
+const MapRouteContainer = styled.div`
+  padding: 4px 6px 0 6px;
+`
+
+const MapInfoMsg = styled.div`
+  font-size: 12px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`
+
+const MapRoutesSVG = styled.svg`
+  background-color: ${props =>
+    rgba(props.theme.BLUE5, props.theme.vibrant === 'dark' ? 0.75 : 0.25)};
+`
+
+const MaproutesBlink = keyframes`
+  from {
+    fill: #d50000;
   }
 
-  isFinalAttack() {
-    const {mapHp, rank, mapId} = this.props
-    if (!mapHp || mapHp[0] == 0)
-      return false
-    const finalHpPostfix = ['', '丙', '乙', '甲'][rank] || ''
-    const finalHp = this.props.finalHps[`${mapId}${finalHpPostfix}`] || 0
-    return finalHp >= mapHp[0]
+  50% {
+    fill: #ff9800;
+  }
+
+  to {
+    fill: #d50000;
+  }
+`
+const Point = styled.rect`
+  fill: white;
+  ${({ active }) =>
+    active &&
+    css`
+      animation: ${MaproutesBlink} 1s linear infinite;
+    `}
+  ${({ passed }) =>
+    passed &&
+    css`
+      fill: #039be5;
+    `}
+  ${({ boss }) =>
+    boss &&
+    css`
+      fill: #c62828;
+    `}
+`
+
+const Line = styled.line`
+  stroke: #373737;
+  stroke-width: 1.5;
+  ${({ passed }) =>
+    passed &&
+    css`
+      stroke: #f5f5f5;
+      stroke-width: 2;
+    `}
+`
+
+const ReminderIcon = styled(MaterialIcon)`
+  height: 15px;
+  margin-right: 0.5ex;
+  width: 15px;
+`
+
+const ItemStatSpan = styled.span`
+  &:not(:last-child) {
+    margin-right: 1ex;
+  }
+`
+
+const MapTooltipMsg = styled.span`
+  &::after {
+    content: '  |  ';
+  }
+
+  &:last-child::after {
+    content: '';
+  }
+`
+
+const emptyObj = {}
+
+const MapRoutes = connect(state => ({
+  sortieMapId: get(state, 'sortie.sortieMapId'),
+  spotHistory: get(state, 'sortie.spotHistory'),
+  bossSpot: get(state, 'sortie.bossSpot'),
+  allMaps: get(state, 'fcd.map'),
+}))(({ sortieMapId, spotHistory, bossSpot, allMaps }) => {
+  if (!sortieMapId || !allMaps) return <div />
+  const mapspots = get(allMaps, `${Math.floor(sortieMapId / 10)}-${sortieMapId % 10}.spots`, {})
+  if (!mapspots || !Object.keys(mapspots).length) return <div />
+  const maproutes = get(allMaps, `${Math.floor(sortieMapId / 10)}-${sortieMapId % 10}.route`, {})
+  const histLen = spotHistory.length
+  const activeSpot = spotHistory[histLen - 1]
+  const bossSpotLoc = mapspots[get(maproutes, `${bossSpot}.1`)] || [-100, -100]
+  const locHistory = spotHistory.map(i => mapspots[get(maproutes, `${i}.1`)] || [-1, -1])
+  const lineHistory = histLen
+    ? zip(locHistory.slice(0, histLen - 1), locHistory.slice(1))
+    : [[-1, -1], [-1, -1]]
+  const SCALE = 1 / 6
+  return (
+    <MapRouteContainer className="map-route-container">
+      <MapRoutesSVG width="190" height="110" viewBox="0 0 190 110" className="maproutes">
+        {// Draw all lines
+        map(maproutes, ([beg, end], i) => {
+          if (!(mapspots[beg] && mapspots[end])) return null
+          const [begX, begY] = mapspots[beg]
+          const [endX, endY] = mapspots[end]
+          return (
+            <Line
+              key={i}
+              x1={parseInt(begX * SCALE)}
+              y1={parseInt(begY * SCALE)}
+              x2={parseInt(endX * SCALE)}
+              y2={parseInt(endY * SCALE)}
+            />
+          )
+        })}
+        {// Draw passed lines
+        lineHistory.map(([[begX, begY], [endX, endY]], i) =>
+          begX > 0 && endX > 0 ? (
+            <Line
+              key={i}
+              x1={parseInt(begX * SCALE)}
+              y1={parseInt(begY * SCALE)}
+              x2={parseInt(endX * SCALE)}
+              y2={parseInt(endY * SCALE)}
+              passed
+            />
+          ) : (
+            <span />
+          ),
+        )}
+        <Point
+          x={parseInt(bossSpotLoc[0] * SCALE) - 4.5}
+          y={parseInt(bossSpotLoc[1] * SCALE) - 4.5}
+          width={9}
+          height={9}
+          boss
+        />
+        {// Draw all points
+        map(mapspots, ([x, y], id) => (
+          <Point
+            key={id}
+            x={parseInt(x * SCALE) - 3}
+            y={parseInt(y * SCALE) - 3}
+            width={6}
+            height={6}
+          />
+        ))}
+        {// Draw passed points again, highlighting the active one
+        map(zip(spotHistory, locHistory), ([id, [x, y]]) =>
+          x > 0 ? (
+            <Point
+              key={id}
+              x={parseInt(x * SCALE) - 3}
+              y={parseInt(y * SCALE) - 3}
+              width={6}
+              height={6}
+              active={id == activeSpot}
+              passed={id != activeSpot}
+            />
+          ) : (
+            <span />
+          ),
+        )}
+      </MapRoutesSVG>
+    </MapRouteContainer>
+  )
+})
+
+const ItemStat = withNamespaces(['others'])(
+  connect(state => ({
+    itemHistoty: get(state, 'sortie.itemHistory'),
+  }))(({ itemHistoty, t }) => {
+    const stat = {}
+    each(itemHistoty, (item = {}) => {
+      each(Object.keys(item), itemKey => (stat[itemKey] = item[itemKey] + (stat[itemKey] || 0)))
+    })
+    return (
+      <MapInfoMsg className="map-info-msg">
+        {Object.keys(stat).length > 0 && `${t('Resources')}: `}
+        {map(
+          Object.keys(stat),
+          itemKey =>
+            itemKey && (
+              <ItemStatSpan key={itemKey} className="item-stat">
+                <ReminderIcon materialId={parseInt(itemKey)} className="material-icon reminder" />
+                {stat[itemKey] > 0 ? `+${stat[itemKey]}` : String(stat[itemKey])}
+              </ItemStatSpan>
+            ),
+        )}
+      </MapInfoMsg>
+    )
+  }),
+)
+
+// Map Reminder
+@withNamespaces()
+@connect(
+  createSelector(
+    [sortieMapDataSelector, sortieMapHpSelector, currentNodeSelector, fcdSelector],
+    (mapData, mapHp, currentNode, fcd = {}) => ({
+      mapId: get(mapData, '0.api_id'),
+      rank: get(mapData, '0.api_eventmap.api_selected_rank'),
+      currentNode,
+      mapData,
+      mapHp,
+      maps: fcd.map || emptyObj,
+    }),
+  ),
+)
+export class PoiMapReminder extends Component {
+  getMapText(mapData, mapRanks) {
+    if (!mapData) return this.props.t('Not in sortie')
+    const { rank } = this.props
+    const { api_maparea_id, api_no } = mapData[1]
+
+    const mapName = `${api_maparea_id}-${api_no}` + (rank == null ? '' : mapRanks[rank])
+    return (
+      <>
+        {this.props.t('Sortie area')}: {mapName}
+      </>
+    )
   }
 
   render() {
-    const {mapHp, mapData} = this.props
-    const isFinalAttack = this.isFinalAttack()
-    if (isFinalAttack) {
-      toast(__('Possible final stage'), {
-        type: 'warning',
-        title: __('Sortie'),
-      })
-    }
+    const { mapHp, mapData, currentNode, mapId, maps, t } = this.props
+    const alphaNode =
+      get(maps, `${Math.floor(mapId / 10)}-${mapId % 10}.route.${currentNode}.1`) || '?'
     return (
-      <div>
-        {
-          !mapHp ? undefined :
-            <ProgressBar bsStyle="info" now={mapHp[0]} max={mapHp[1]} />
-        }
-        <div className='alert alert-default'>
-          <span id='map-reminder-area'>
-            {this.getMapText(mapData)}
-          </span>
-        </div>
-      </div>
+      <PoiMapReminderTag tag="poi-map-reminder">
+        <Popover
+          position={Position.TOP_RIGHT}
+          interactionKind={PopoverInteractionKind.HOVER}
+          wrapperTagName="div"
+          targetTagName="div"
+          disabled={!mapData}
+        >
+          <MapReminder>
+            {mapHp && (
+              <MapHPProgress
+                className="map-hp-progress"
+                animate={false}
+                stripes={false}
+                intent={Intent.PRIMARY}
+                value={mapHp[0] / mapHp[1]}
+              />
+            )}
+            <Alert>
+              <span id="map-reminder-area">
+                {this.getMapText(mapData, [
+                  '',
+                  this.props.t('丁'),
+                  this.props.t('丙'),
+                  this.props.t('乙'),
+                  this.props.t('甲'),
+                ])}
+              </span>
+            </Alert>
+          </MapReminder>
+          <>
+            <MapRoutes />
+            <MapInfoMsg className="map-info-msg">
+              {!!currentNode && (
+                <MapTooltipMsg className="map-tooltip-msg">
+                  {t('Node')}: {alphaNode} ({currentNode})
+                </MapTooltipMsg>
+              )}
+              {!!mapHp && mapHp[1] > 0 && mapHp[0] !== 0 && (
+                <MapTooltipMsg className="map-tooltip-msg">
+                  HP: {mapHp[0]} / {mapHp[1]}
+                </MapTooltipMsg>
+              )}
+            </MapInfoMsg>
+            <ItemStat />
+          </>
+        </Popover>
+      </PoiMapReminderTag>
     )
   }
-})
+}

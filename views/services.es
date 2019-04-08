@@ -1,63 +1,94 @@
+/* global getStore, config, toggleModal, log, error, dbg */
 import { remote } from 'electron'
+import { isInGame } from 'views/utils/game-utils'
+import { observer, observe } from 'redux-observers'
+import { store } from 'views/create-store'
+import i18next from 'views/env-parts/i18next'
 
-const {$, config, toggleModal, log, error, i18n, dbg} = window
-const __ = i18n.others.__.bind(i18n.others)
-const __n = i18n.others.__n.bind(i18n.others)
+const proxy = remote.require('./lib/proxy')
 
-const WindowManager = remote.require('./lib/window')
+const { stopNavigateAndHandleNewWindow } = remote.require('./lib/utils')
 
 import './services/update'
 import './services/layout'
 import './services/welcome'
-import './services/doyouknow'
 import './services/modernization-delta'
-import './services/developmentProphecy'
-import './services/sortieDangerousCheck'
-import './services/sortieFreeSlotCheck'
-import './services/resupply-bauxite'
+import './services/marriage-delta'
+import './services/development-prophecy'
+import './services/sortie-dangerous-check'
+import './services/sortie-free-slot-check'
+import './services/event-sortie-check'
+import './services/google-analytics'
+import './services/battle-notify'
+import { gameRefreshPage, gameRefreshPageIgnoringCache, gameReload } from './services/utils'
 
-const refreshFlash = () =>
-  $('kan-game webview').executeJavaScript(`
-    var doc;
-    if (document.getElementById('game_frame')) {
-      doc = document.getElementById('game_frame').contentDocument;
+// Update server info
+const setUpdateServer = dispatch => {
+  const t = setInterval(() => {
+    const { ip, num: id, name } = proxy.getServerInfo()
+    if (window.getStore('info.server.ip') !== ip) {
+      if (ip) {
+        dispatch({
+          type: '@@ServerReady',
+          serverInfo: { ip, id, name },
+        })
+      }
     } else {
-      doc = document;
+      clearInterval(t)
     }
-    var flash = doc.getElementById('flashWrap');
-    if(flash) {
-      var flashInnerHTML = flash.innerHTML;
-      flash.innerHTML = '';
-      flash.innerHTML = flashInnerHTML;
+  }, 1000)
+}
+const serverObserver = observer(
+  state => state.info.server.ip,
+  (dispatch, current, previous) => {
+    if (!current) {
+      setUpdateServer(dispatch)
     }
-  `)
+  },
+)
+setUpdateServer(window.dispatch)
+
+observe(store, [serverObserver])
 
 // F5 & Ctrl+F5 & Alt+F5
-window.addEventListener('keydown', (e) => {
+window.addEventListener('keydown', async e => {
+  const isingame = await isInGame()
+  if (
+    (document.activeElement.tagName === 'WEBVIEW' && !isingame) ||
+    document.activeElement.tagName === 'INPUT'
+  ) {
+    return
+  }
   if (process.platform == 'darwin') {
     if (e.keyCode === 91 || e.keyCode === 93) {
-      // When the game (flash) is on focus, it catches all keypress events
+      // When the game frame is on focus, it catches all keypress events
       // Blur the webview when any Cmd key is pressed,
       // so the OS shortcuts will always work
       remote.getCurrentWindow().blurWebView()
     } else if (e.keyCode === 82 && e.metaKey) {
-      if (e.shiftKey) { // cmd + shift + r
-        $('kan-game webview').reloadIgnoringCache()
-      } else if (e.altKey) { // cmd + alt + r
-        refreshFlash()
-      } else { // cmd + r
+      if (e.shiftKey) {
+        // cmd + shift + r
+        gameRefreshPageIgnoringCache()
+      } else if (e.altKey) {
+        // cmd + alt + r
+        gameReload()
+      } else {
+        // cmd + r
         // Catched by menu
         // $('kan-game webview').reload()
         return false
       }
     }
-  } else if (e.keyCode === 116){
-    if (e.ctrlKey) { // ctrl + f5
-      $('kan-game webview').reloadIgnoringCache()
-    } else if (e.altKey){ // alt + f5
-      refreshFlash()
-    } else if (!e.metaKey){ // f5
-      $('kan-game webview').reload()
+  } else if (e.keyCode === 116) {
+    if (e.ctrlKey) {
+      // ctrl + f5
+      gameRefreshPageIgnoringCache()
+    } else if (e.altKey) {
+      // alt + f5
+      gameReload()
+    } else if (!e.metaKey) {
+      // f5
+      gameRefreshPage()
     }
   }
 })
@@ -71,55 +102,65 @@ const exitPoi = () => {
   window.onbeforeunload = null
   window.close()
 }
-window.onbeforeunload = (e) => {
+window.onbeforeunload = e => {
   if (confirmExit || !config.get('poi.confirm.quit', false)) {
     exitPoi()
   } else {
-    toggleModal(__('Exit'), __('Confirm?'), [{
-      name: __('Confirm'),
-      func: exitPoi,
-      style: 'warning',
-    }])
+    toggleModal(i18next.t('Exit'), i18next.t('Confirm?'), [
+      {
+        name: i18next.t('Confirm'),
+        func: exitPoi,
+        style: 'warning',
+      },
+    ])
     e.returnValue = false
   }
 }
 class GameResponse {
-  constructor(path, body, postBody) {
+  constructor(path, body, postBody, time) {
     this.path = path
     this.body = body
     this.postBody = postBody
-    Object.defineProperty(this, 'ClickToCopy -->', {get: () => {
-      require('electron').clipboard.writeText(JSON.stringify({path, body, postBody}))
-      return `Copied: ${this.path}`
-    }})
+    Object.defineProperty(this, 'time', {
+      get: () => String(new Date(time)),
+    })
+    Object.defineProperty(this, 'ClickToCopy -->', {
+      get: () => {
+        require('electron').clipboard.writeText(JSON.stringify({ path, body, postBody }))
+        return `Copied: ${this.path}`
+      },
+    })
   }
 }
 
-window.addEventListener('game.request', (e) => {
+window.addEventListener('game.request', e => {
   //const {method} = e.detail
   //const resPath = e.detail.path
 })
-window.addEventListener('game.response', (e) => {
-  const {method, body, postBody} = e.detail
+window.addEventListener('game.response', e => {
+  const { method, body, postBody, time } = e.detail
   const resPath = e.detail.path
   if (dbg.extra('gameResponse').isEnabled()) {
-    dbg._getLogFunc()(new GameResponse(resPath, body, postBody))
+    dbg._getLogFunc()(new GameResponse(resPath, body, postBody, time))
   }
-  if (config.get('poi.showNetworkLog', true)) {
-    log(`${__('Hit')} ${method} ${resPath}`, {dontReserve: true})
+  if (config.get('poi.misc.networklog', true)) {
+    log(`${i18next.t('Hit')}: ${method} ${resPath}`, { dontReserve: true })
   }
 })
-window.addEventListener ('network.error', () => {
-  error(__('Connection failed.'), {dontReserve: true})
+window.addEventListener('network.error', () => {
+  error(i18next.t('Connection failed'), { dontReserve: true })
 })
-window.addEventListener('network.error.retry', (e) => {
-  const {counter} = e.detail
-  error(__n('Connection failed after %s retry',  counter), {dontReserve: true})
+window.addEventListener('network.error.retry', e => {
+  const { counter } = e.detail
+  error(i18next.t('ConnectionFailedMsg', { count: counter }), { dontReserve: true })
 })
-window.addEventListener('network.invalid.result', (e) => {
-  const {code} = e.detail
-  error(__('The server presented you a cat. (Error code: %s)',  code), {dontReserve: true})
+window.addEventListener('network.invalid.result', e => {
+  const { code } = e.detail
+  error(i18next.t('CatError', { code }), { dontReserve: true })
 })
+
+remote.getCurrentWebContents().on('devtools-opened', e => window.dispatchEvent(new Event('resize')))
+stopNavigateAndHandleNewWindow(remote.getCurrentWebContents().id)
 
 remote.getCurrentWebContents().on('dom-ready', () => {
   if (process.platform === 'darwin') {
@@ -127,92 +168,17 @@ remote.getCurrentWebContents().on('dom-ready', () => {
       var div = document.createElement("div");
       div.style.position = "absolute";
       div.style.top = 0;
-      div.style.height = "23px";
+      div.style.height = "40px";
       div.style.width = "100%";
       div.style["-webkit-app-region"] = "drag";
       div.style["pointer-events"] = "none";
       document.body.appendChild(div);
     `)
   }
-  if (config.get('poi.content.muted', false)) {
-    $('kan-game webview').setAudioMuted(true)
-  }
-  if ($('kan-game').style.display !== 'none')  {
-    $('kan-game webview').loadURL(config.get('poi.homepage', 'http://www.dmm.com/netgame/social/application/-/detail/=/app_id=854854/'))
-  }
-  $('kan-game webview').addEventListener('dom-ready', (e) => {
-    if (config.get('poi.enableDMMcookie', false)) {
-      $('kan-game webview').executeJavaScript(`
-        document.cookie = "cklg=welcome;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/";
-        document.cookie = "cklg=welcome;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/netgame/";
-        document.cookie = "cklg=welcome;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/netgame_s/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=osapi.dmm.com;path=/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=203.104.209.7;path=/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=www.dmm.com;path=/netgame/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=log-netgame.dmm.com;path=/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/netgame/";
-        document.cookie = "ckcy=1;expires=Sun, 09 Feb 2019 09:00:09 GMT;domain=.dmm.com;path=/netgame_s/";
-      `)
-    }
-    if (config.get('poi.disableNetworkAlert', false)) {
-      $('kan-game webview').executeJavaScript('DMM.netgame.reloadDialog=function(){}')
-    }
-  })
-  $('kan-game webview').addEventListener('new-window', (e) => {
-    const exWindow = WindowManager.createWindow({
-      realClose: true,
-      navigatable: true,
-      nodeIntegration: false,
-    })
-    exWindow.loadURL(e.url)
-    exWindow.show()
-    e.preventDefault()
-  })
 })
 
-// Workaround for touch screen
-let transformedToMouseEvent = false, isMoved = false
-const webContents = remote.getCurrentWebContents()
-window.addEventListener('touchend', (e) => {
-  transformedToMouseEvent = false
-  setTimeout(() => {
-    if (!transformedToMouseEvent) {
-      console.warn("Blurring focusing element")
-      document.activeElement.blur()
-      e.target.focus()
-      if (!isMoved) {
-        const x = Math.round(e.changedTouches[0].clientX),
-          y = Math.round(e.changedTouches[0].clientY)
-        webContents.sendInputEvent({
-          type: 'mouseMove',
-          x: x,
-          y: y,
-        })
-        webContents.sendInputEvent({
-          type: 'mouseDown',
-          x: x,
-          y: y,
-          button: 'left',
-          clickCount: 1,
-        })
-        webContents.sendInputEvent({
-          type: 'mouseUp',
-          x: x,
-          y: y,
-          button: 'left',
-          clickCount: 1,
-        })
-      }
-    }
-  }, 300)
-})
-window.addEventListener('touchstart', (e) => {
-  isMoved = false
-})
-window.addEventListener('touchmove', (e) => {
-  isMoved = true
-})
-window.addEventListener('mouseup', (e) => {
-  transformedToMouseEvent = true
+remote.getCurrentWindow().on('show', () => {
+  if (getStore('layout.webview.ref')) {
+    getStore('layout.webview.ref').executeJavaScript('align()')
+  }
 })

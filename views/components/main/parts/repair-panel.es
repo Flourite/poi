@@ -1,15 +1,16 @@
-const { ROOT } = window
+/* global ROOT, getStore */
 import React, { Component } from 'react'
-import { OverlayTrigger, Tooltip } from 'react-bootstrap'
 import { connect } from 'react-redux'
-import { join as joinString, range, pick } from 'lodash'
+import { join as joinString, range, get } from 'lodash'
 import { join } from 'path-extra'
 import { createSelector } from 'reselect'
+import cls from 'classnames'
+import FA from 'react-fontawesome'
+import { withNamespaces } from 'react-i18next'
+import { Position, Intent, ResizeSensor, Tooltip } from '@blueprintjs/core'
+import styled from 'styled-components'
 
-const { i18n } = window
-
-const __ = i18n.main.__.bind(i18n.main)
-
+import { Avatar } from 'views/components/etc/avatar'
 import { CountdownNotifierLabel } from './countdown-timer'
 import {
   repairsSelector,
@@ -19,95 +20,216 @@ import {
   inRepairShipsIdSelector,
   createDeepCompareArraySelector,
 } from 'views/utils/selectors'
+import { indexify, timeToString } from 'views/utils/tools'
+import {
+  DockPanelCardWrapper,
+  PanelItemTooltip,
+  DockInnerWrapper,
+  Panel,
+  Watermark as WatermarkL,
+  DockName,
+  EmptyDockWrapper,
+} from './styled-components'
 
-const inRepairShipsDataSelector = createSelector([
-  inRepairShipsIdSelector,
-  shipsSelector,
-], (inRepairShipsId, ships) => inRepairShipsId.map((shipId) => ships[shipId])
+const Watermark = styled(WatermarkL)`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 52px;
+  height: 52px;
+  font-size: 52px;
+  opacity: 0.15;
+  z-index: -1;
+  text-align: right;
+`
+
+const inRepairShipsDataSelector = createSelector(
+  [inRepairShipsIdSelector, shipsSelector],
+  (inRepairShipsId, ships) => inRepairShipsId.map(shipId => ships[shipId]),
 )
 
-export default connect(
-  createDeepCompareArraySelector([
-    repairsSelector,
-    constSelector,
-    inRepairShipsDataSelector,
-    miscSelector,
-  ], (repairs, {$ships}, inRepairShips, {canNotify}) => ({
-    repairs,
-    $ships,
-    inRepairShips,
-    canNotify,
-  }))
-)(class RepairPanel extends Component {
-  getLabelStyle = (props, timeRemaining) => {
-    return (
-      timeRemaining > 600 ? 'primary' :
-      timeRemaining > 60 ? 'warning' :
-      timeRemaining >= 0 ? 'success' :
-      'default'
-    )
+const EmptyDock = ({ state }) => (
+  <EmptyDockWrapper className="empty-dock">
+    <FA name={state === 0 ? 'bath' : 'lock'} />
+  </EmptyDockWrapper>
+)
+
+const getPanelDimension = width => {
+  if (width > 480) {
+    return 4
   }
-  static basicNotifyConfig = {
+  if (width > 240) {
+    return 2
+  }
+  return 1
+}
+
+const getTagIntent = (props, timeRemaining) =>
+  timeRemaining > 600
+    ? Intent.PRIMARY
+    : timeRemaining > 60
+    ? Intent.WARNING
+    : timeRemaining >= 0
+    ? Intent.SUCCESS
+    : Intent.NONE
+
+const isActive = () => getStore('ui.activeMainTab') === 'main-view'
+
+@withNamespaces(['main'])
+@connect(
+  createDeepCompareArraySelector(
+    [
+      repairsSelector,
+      constSelector,
+      inRepairShipsDataSelector,
+      miscSelector,
+      state => get(state, 'config.poi.appearance.avatar', true),
+    ],
+    (repairs, { $ships }, inRepairShips, { canNotify }, enableAvatar) => ({
+      repairs,
+      $ships,
+      inRepairShips,
+      canNotify,
+      enableAvatar,
+    }),
+  ),
+)
+export class RepairPanel extends Component {
+  basicNotifyConfig = {
     type: 'repair',
-    title: __('Docking'),
-    message: (names) => `${joinString(names, ', ')} ${__('repair completed')}`,
+    title: this.props.t('main:Docking'),
+    message: names => `${joinString(names, ', ')} ${this.props.t('main:repair completed')}`,
     icon: join(ROOT, 'assets', 'img', 'operation', 'repair.png'),
     preemptTime: 60,
   }
+
+  width = 250
+
+  state = {
+    dimension: 2,
+    displayShipName: true,
+  }
+
+  updateDimension = () => {
+    const dimension = getPanelDimension(this.width)
+    const displayShipName = !this.props.enableAvatar || this.width / dimension >= 145
+
+    if (dimension !== this.state.dimension || displayShipName !== this.state.displayShipName) {
+      this.setState({
+        dimension,
+        displayShipName,
+      })
+    }
+  }
+
+  handleResize = ([entry]) => {
+    this.width = entry.contentRect.width
+    this.updateDimension()
+  }
+
+  componentDidUpdate = prevProps => {
+    if (prevProps.enableAvatar !== this.props.enableAvatar) {
+      this.updateDimension()
+    }
+  }
+
   render() {
-    const {canNotify, repairs, $ships, inRepairShips} = this.props
+    const { canNotify, repairs, $ships, inRepairShips, enableAvatar, editable } = this.props
+    const { dimension, displayShipName } = this.state
     // The reason why we use an array to pass in inRepairShips and indexify it
     // into ships, is because by passing an array we can make use of
     // createDeepCompareArraySelector which only deep compares arrays, and
     // by indexifying it into an object, it becomes easier to use.
-    const ships = window.indexify(inRepairShips)
+    const ships = indexify(inRepairShips)
     return (
-      <div>
-        {
-          range(0, 4).map((i) => {
-            const emptyRepair = {
-              api_complete_time: 0,
-              api_complete_time_str: '0',
-              api_item1: 0,
-              api_item2: 0,
-              api_item3: 0,
-              api_item4: 0,
-              api_ship_id: 0,
-              api_state: 0,
-            }
-            const dock = repairs[i] || emptyRepair
-            const dockName =
-              dock.api_state == -1 ? __('Locked') :
-              dock.api_state == 0 ? __('Empty') :
-              i18n.resources.__($ships[ships[dock.api_ship_id].api_ship_id].api_name)
-            const completeTime = dock.api_complete_time || -1
-            return (
-              <div key={i} className="panel-item ndock-item">
-                <span className="ndock-name">{dockName}</span>
-
-              <OverlayTrigger placement='left' overlay={
-                <Tooltip id={`ndock-finish-by-${i}`} style={dock.api_state < 0 && {display: 'none'}}>
-                  <strong>{__("Finish by : ")}</strong>{window.timeToString(completeTime)}
-                </Tooltip>
-              }>
-                <div>
-                  <CountdownNotifierLabel
-                    timerKey={`ndock-${i+1}`}
-                    completeTime={completeTime}
-                    getLabelStyle={this.getLabelStyle}
-                    getNotifyOptions={() => canNotify && (completeTime >= 0) && {
-                      ...this.constructor.basicNotifyConfig,
-                      args: dockName,
-                      completeTime: completeTime,
-                    }}
-                  />
-                </div>
-              </OverlayTrigger>
-              </div>
-            )
-          })
-        }
-      </div>
+      <ResizeSensor onResize={this.handleResize}>
+        <DockPanelCardWrapper elevation={editable ? 2 : 0} interactive={editable}>
+          <Panel>
+            {range(0, 4).map(i => {
+              const emptyRepair = {
+                api_complete_time: 0,
+                api_complete_time_str: '0',
+                api_item1: 0,
+                api_item2: 0,
+                api_item3: 0,
+                api_item4: 0,
+                api_ship_id: 0,
+                api_state: 0,
+              }
+              const dock = repairs[i] || emptyRepair
+              const dockName =
+                dock.api_state == -1
+                  ? this.props.t('main:Locked')
+                  : dock.api_state == 0
+                  ? this.props.t('main:Empty')
+                  : displayShipName
+                  ? this.props.t(
+                      `resources:${$ships[ships[dock.api_ship_id].api_ship_id].api_name}`,
+                    )
+                  : ''
+              const completeTime = dock.api_complete_time || -1
+              let hpPercentage
+              if (dock.api_state > 0) {
+                hpPercentage =
+                  (100 * get(ships, [dock.api_ship_id, 'api_nowhp'])) /
+                  get(ships, [dock.api_ship_id, 'api_maxhp'])
+              }
+              return (
+                <PanelItemTooltip
+                  key={i}
+                  className={cls('panel-item', 'ndock-item', { avatar: enableAvatar })}
+                  dimension={dimension}
+                >
+                  <DockInnerWrapper>
+                    {enableAvatar && (
+                      <>
+                        {dock.api_state > 0 ? (
+                          <Avatar
+                            height={20}
+                            mstId={get(ships, [dock.api_ship_id, 'api_ship_id'])}
+                            isDamaged={hpPercentage <= 50}
+                          />
+                        ) : (
+                          <EmptyDock state={dock.api_state} />
+                        )}
+                      </>
+                    )}
+                    <DockName className="ndock-name">{dockName}</DockName>
+                    <Tooltip
+                      position={Position.LEFT}
+                      disabled={dock.api_state < 0}
+                      content={
+                        <div>
+                          <strong>{this.props.t('main:Finish By')}: </strong>
+                          {timeToString(completeTime)}
+                        </div>
+                      }
+                    >
+                      <CountdownNotifierLabel
+                        timerKey={`ndock-${i + 1}`}
+                        completeTime={completeTime}
+                        getLabelStyle={getTagIntent}
+                        getNotifyOptions={() =>
+                          canNotify &&
+                          completeTime >= 0 && {
+                            ...this.basicNotifyConfig,
+                            args: dockName,
+                            completeTime: completeTime,
+                          }
+                        }
+                        isActive={isActive}
+                      />
+                    </Tooltip>
+                  </DockInnerWrapper>
+                </PanelItemTooltip>
+              )
+            })}
+          </Panel>
+          <Watermark>
+            <FA name="fill" />
+          </Watermark>
+        </DockPanelCardWrapper>
+      </ResizeSensor>
     )
   }
-})
+}

@@ -1,112 +1,195 @@
-const electron = require('electron')
-const remote = electron.remote
-const Promise = require('bluebird')
+const { remote, webFrame } = require('electron')
 const config = remote.require('./lib/config')
-require('coffee-script/register')
 
-// webview focus area fix
-// This is a workaround for https://bugs.chromium.org/p/chromium/issues/detail?id=600395
-window.onclick = (e) => {
-  remote.getCurrentWindow().webContents.executeJavaScript(`
-    $('webview').blur()
-    $('webview').focus()
-  `)
+window.ipc = remote.require('./lib/ipc')
+
+if (config.get('poi.content.muted', false)) {
+  remote.getCurrentWebContents().setAudioMuted(true)
 }
 
-// Faster align setting
-const webFrame = electron.webFrame
+document.addEventListener('DOMContentLoaded', e => {
+  if (config.get('poi.misc.dmmcookie', false)) {
+    const now = new Date()
+    now.setFullYear(now.getFullYear() + 1)
+    const expires = now.toUTCString()
+    document.cookie = `cklg=welcome;expires=${expires};domain=.dmm.com;path=/`
+    document.cookie = `cklg=welcome;expires=${expires};domain=.dmm.com;path=/netgame/`
+    document.cookie = `cklg=welcome;expires=${expires};domain=.dmm.com;path=/netgame_s/`
+    document.cookie = `ckcy=1;expires=${expires};domain=osapi.dmm.com;path=/`
+    document.cookie = `ckcy=1;expires=${expires};domain=203.104.209.7;path=/`
+    document.cookie = `ckcy=1;expires=${expires};domain=www.dmm.com;path=/netgame/`
+    document.cookie = `ckcy=1;expires=${expires};domain=log-netgame.dmm.com;path=/`
+    document.cookie = `ckcy=1;expires=${expires};domain=.dmm.com;path=/`
+    document.cookie = `ckcy=1;expires=${expires};domain=.dmm.com;path=/netgame/`
+    document.cookie = `ckcy=1;expires=${expires};domain=.dmm.com;path=/netgame_s/`
+    const ua = remote.getCurrentWebContents().session.getUserAgent()
+    remote.getCurrentWebContents().session.setUserAgent(ua, 'ja-JP')
+  }
+  if (config.get('poi.misc.disablenetworkalert', false) && window.DMM) {
+    window.DMM.netgame.reloadDialog = function() {}
+  }
+})
 
-const alertCSS =
-`#alert {
-  transform: scale(0.8);
-  left: 80px !important;
-  top: -80px !important;
+// Faster align setting
+const alertCSS = `#alert {
+  left: 270px !important;
+  top: 83px !important;
+  border: 0;
 }
 `
 
 const alignCSS = document.createElement('style')
-const alignInnerCSS = document.createElement('style')
+alignCSS.innerHTML = `html {
+  overflow: hidden;
+}
+#w, #main-ntg {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  margin-left: 0 !important;
+  margin-top: 0 !important;
+}
+#game_frame {
+  width: 1200px !important;
+  position: absolute;
+  top: 0px;
+  left: 0;
+}
+.naviapp {
+  z-index: -1;
+}
+#ntg-recommend {
+  display: none !important;
+}
+`
 
-const getWebviewWidth = Promise.coroutine(function* () {
-  const width = yield new Promise((resolve, reject) => {
-    remote.getCurrentWindow().webContents.executeJavaScript("$('webview').getBoundingClientRect().width", (result) => {
-      resolve(result)
-    })
-  })
-  return width
-})
+const disableTab = e => {
+  if (e.key === 'Tab') {
+    e.preventDefault()
+  }
+}
 
-window.align = Promise.coroutine(function* () {
-  let zoom = yield getWebviewWidth()
-  zoom = zoom / 800
-  webFrame.setZoomFactor(zoom)
-  window.scrollTo(0, 0)
-  if (!window.location.toString().includes("http://www.dmm.com/netgame/social/-/gadgets/=/app_id=854854/")) {
+function handleSpacingTop(show, count = 0) {
+  const status = show ? 'block' : 'none'
+  const action = show ? 'removeEventListener' : 'addEventListener'
+  if (document.querySelector('#spacing_top')) {
+    document.querySelector('#spacing_top').style.display = status
+  }
+  document[action]('keydown', disableTab)
+  if (count > 20 || !document.querySelector('#game_frame')) {
     return
   }
-  alignCSS.innerHTML =
-  `html {
-    overflow: hidden;
+  try {
+    const frameDocument = document.querySelector('#game_frame').contentDocument
+    frameDocument[action]('keydown', disableTab)
+    frameDocument.querySelector('#spacing_top').style.display = status
+    frameDocument.querySelector('#htmlWrap').contentDocument[action]('keydown', disableTab)
+  } catch (e) {
+    setTimeout(() => handleSpacingTop(show, count + 1), 1000)
   }
-  #w, #main-ntg {
-    position: absolute !important;
-    top: 0;
-    left: 0;
-    z-index: 100;
-    margin-left: 0 !important;
-    margin-top: 0 !important;
+}
+
+function handleZoom(count = 0) {
+  if (count > 20) {
+    return
   }
-  #game_frame {
-    width: 800px !important;
-    position: absolute;
-    top: 0px;
-    left: 0;
+  const width = window.ipc.access('WebView').width
+  const zoom = Math.round(width * config.get('poi.appearance.zoom', 1)) / 1200
+  if (Number.isNaN(zoom)) {
+    setTimeout(() => handleZoom(count + 1), 1000)
+    return
   }
-  .naviapp {
-    z-index: -1;
+  webFrame.setZoomFactor(zoom)
+  const zl = webFrame.getZoomLevel()
+  webFrame.setLayoutZoomLevelLimits(zl, zl)
+}
+
+window.align = function() {
+  if (location.pathname.includes('854854') || location.hostname === 'osapi.dmm.com') {
+    document.body.appendChild(alignCSS)
+    handleSpacingTop(false)
+    window.scrollTo(0, 0)
+  } else if (location.pathname.includes('kcs')) {
+    document.body.appendChild(alignCSS)
   }
-  #ntg-recommend {
-    display: none !important;
-  }
-  `
-  alignInnerCSS.innerHTML = `
-  #spacing_top {
-    display: none;
-  }
-  `
-})
+  handleZoom()
+}
 
 window.unalign = () => {
-  alignCSS.innerHTML = ""
-  alignInnerCSS.innerHTML = ""
-}
-
-window.align()
-
-remote.getCurrentWebContents().insertCSS(alertCSS)
-
-const handleDOMContentLoaded = () => {
-  window.align()
-  document.querySelector('body').appendChild(alignCSS)
-  const flashQuality = config.get('poi.flashQuality', 'high')
-  const t = setInterval(() => {
-    try {
-      const iframeDoc = document.querySelector('#game_frame') ? document.querySelector('#game_frame').contentWindow.document : document
-      iframeDoc.querySelector('body').appendChild(alignInnerCSS)
-      if (flashQuality === 'high') {
-        return
-      }
-      const flash = iframeDoc.querySelector('#externalswf').cloneNode(true)
-      flash.setAttribute('quality', flashQuality)
-      iframeDoc.querySelector('#externalswf').remove()
-      iframeDoc.querySelector('#flashWrap').appendChild(flash)
-      console.warn('Successed.', new Date())
-      clearInterval(t)
-    } catch (e) {
-      console.warn('Failed. Will retry in 100ms.')
+  if (location.pathname.includes('854854') || location.pathname.includes('kcs')) {
+    if (document.body.contains(alignCSS)) {
+      document.body.removeChild(alignCSS)
     }
-  }, 100)
-  document.removeEventListener("DOMContentLoaded", handleDOMContentLoaded)
+    if (document.querySelector('#spacing_top')) {
+      document.querySelector('#spacing_top').style.display = 'block'
+    }
+    handleSpacingTop(true)
+  }
 }
 
-document.addEventListener("DOMContentLoaded", handleDOMContentLoaded)
+window.capture = async function(toClipboard) {
+  const canvas = document.querySelector('#game_frame')
+    ? document
+        .querySelector('#game_frame')
+        .contentDocument.querySelector('#htmlWrap')
+        .contentDocument.querySelector('canvas')
+    : document.querySelector('#htmlWrap')
+    ? document.querySelector('#htmlWrap').contentDocument.querySelector('canvas')
+    : document.querySelector('canvas')
+    ? document.querySelector('canvas')
+    : null
+  if (!canvas || !ImageCapture) return false
+  return await new ImageCapture(canvas.captureStream(0).getVideoTracks()[0])
+    .grabFrame()
+    .then(imageBitmap => {
+      const tempCanvas = document.createElement('canvas')
+      tempCanvas.width = imageBitmap.width
+      tempCanvas.height = imageBitmap.height
+      tempCanvas.getContext('2d').drawImage(imageBitmap, 0, 0)
+      return tempCanvas.toDataURL()
+    })
+    .then(dataURL => {
+      const ss = window.ipc.access('screenshot')
+      if (ss && ss.onScreenshotCaptured) ss.onScreenshotCaptured({ dataURL, toClipboard })
+      return true
+    })
+    .catch(() => false)
+}
+
+// ref for item purchase css insertion
+const webContent = remote.getCurrentWebContents()
+
+const handleDocumentReady = () => {
+  if (!document.body) {
+    setTimeout(handleDocumentReady, 1000)
+    return
+  }
+  window.align()
+  webContent.insertCSS(alertCSS)
+}
+
+handleDocumentReady()
+
+if (
+  window.location
+    .toString()
+    .includes('http://www.dmm.com/netgame/social/-/gadgets/=/app_id=854854/')
+) {
+  const _documentWrite = document.write
+  document.write = function() {
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+      console.warn(
+        `Block document.write since document is at state "${document.readyState}". Blocked call:`,
+        arguments,
+      )
+    } else {
+      _documentWrite.apply(this, arguments)
+    }
+  }
+}
+
+// A workaround for drop-and-drag navigation
+remote
+  .require('./lib/utils')
+  .stopFileNavigateAndHandleNewWindowInApp(remote.getCurrentWebContents().id)

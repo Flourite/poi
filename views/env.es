@@ -1,9 +1,13 @@
 require('coffee-react/register')
-require('babel-register')(require('../babel.config'))
+require('@babel/register')(require('../babel.config'))
 import path from 'path-extra'
 import fs from 'fs-extra'
 import { remote } from 'electron'
-import lodash from 'lodash'        // TODO: Backward compatibility
+import lodash from 'lodash'
+
+import './polyfills/react-i18next'
+import './polyfills/react-fontawesome'
+import './polyfills/react-bootstrap'
 
 // Environments
 window.remote = remote
@@ -14,56 +18,38 @@ window.PLUGIN_PATH = path.join(window.APPDATA_PATH, 'plugins')
 window.POI_VERSION = remote.getGlobal('POI_VERSION')
 window.SERVER_HOSTNAME = remote.getGlobal('SERVER_HOSTNAME')
 window.MODULE_PATH = remote.getGlobal('MODULE_PATH')
-window.appIcon = remote.getGlobal('appIcon')
-fs.ensureDirSync(window.PLUGIN_PATH)
-fs.ensureDirSync(path.join(window.PLUGIN_PATH, 'node_modules'))
+window.appTray = remote.getGlobal('appTray')
+window.isSafeMode = remote.getGlobal('isSafeMode')
+window.isDevVersion = remote.getGlobal('isDevVersion')
 
-// Add ROOT to `require` search path
-require('module').globalPaths.push(window.ROOT)
+// Temp: remove package-lock.json of plugin folder
+fs.remove(path.join(window.PLUGIN_PATH, 'package-lock.json'))
 
-// Shortcuts and Components
-window.dbg = require(path.join(window.ROOT, 'lib', 'debug'))
-window.dbg.init()
-window._ = lodash           // TODO: Backward compatibility
-window.$ = (param) => document.querySelector(param)
-window.$$ = (param) => document.querySelectorAll(param)
-window.jQuery = require('jquery')
-window.React = require('react')
-window.ReactDOM = require('react-dom')
-window.FontAwesome = require('react-fontawesome')
-window.ReactBootstrap = require('react-bootstrap')
-// Workaround
-const React = window.React
-const {Radio, Checkbox, FormControl} = window.ReactBootstrap
-window.ReactBootstrap.Input = class extends window.React.Component {
-  render() {
-    switch (this.props.type) {
-    case 'radio': {
-      return (
-        <Radio {...this.props}>{this.props.label}</Radio>
-      )
-    }
-    case 'checkbox': {
-      return (
-        <Checkbox {...this.props}>{this.props.label}</Checkbox>
-      )
-    }
-    case 'select': {
-      return (
-        <FormControl componentClass='select' {...this.props}>{this.props.children}</FormControl>
-      )
-    }
-    default: {
-      return (
-        <FormControl {...this.props}>{this.props.children}</FormControl>
-      )
-    }
-    }
-  }
+if (window.isMain) {
+  // Plugins
+  fs.ensureDirSync(window.PLUGIN_PATH)
+  fs.ensureDirSync(path.join(window.PLUGIN_PATH, 'node_modules'))
+  // Debug
+  window.dbg = require(path.join(window.ROOT, 'lib', 'debug'))
+  window.dbg.init()
 }
 
-// Utils
-require('./env-parts/utils')
+// Add ROOT to `require` search path
+require('module').globalPaths.unshift(window.ROOT)
+
+// Disable eval
+window.eval = global.eval = function() {
+  throw new Error('Sorry, this app does not support window.eval().')
+}
+
+// Shortcuts and Components
+window._ = lodash // TODO: Backward compatibility
+window.$ = param => document.querySelector(param)
+window.$$ = param => document.querySelectorAll(param)
+
+// Polyfills
+Object.clone = obj => JSON.parse(JSON.stringify(obj))
+Object.remoteClone = obj => JSON.parse(window.remote.require('./lib/utils').remoteStringify(obj))
 
 // Node modules
 const originConfig = remote.require('./lib/config')
@@ -76,13 +62,12 @@ for (const key in originConfig) {
 }
 
 // i18n config
-require('./env-parts/i18n-config')
+require('./env-parts/i18next')
 
 // window.notify
 // msg=null: Sound-only notification.
 require('./env-parts/notif-center')
 require('./env-parts/modal')
-require('./env-parts/toast')
 
 // Custom theme
 // You should call window.applyTheme() to apply a theme properly.
@@ -93,3 +78,9 @@ require('./env-parts/data-resolver')
 
 // Getter
 require('./env-parts/getter')
+
+// Only used by main window
+if (window.isMain) {
+  // Add devtool debug message print
+  require('./env-parts/devtool-message')
+}

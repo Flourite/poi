@@ -1,40 +1,129 @@
-import path from 'path-extra'
 import React from 'react'
-import { Tabs, Tab } from 'react-bootstrap'
+import { Tabs, Tab, Tooltip, Position } from '@blueprintjs/core'
 import FontAwesome from 'react-fontawesome'
-import { PoiConfig, DisplayConfig, NetworkConfig, PluginConfig, Others } from './parts'
+import { Trans, withNamespaces } from 'react-i18next'
+import { isEqual, map } from 'lodash'
+import styled from 'styled-components'
 
-const {i18n} = window
-const __ = i18n.setting.__.bind(i18n.setting)
+import { PoiConfig } from './main'
+import { GamingConfig } from './gaming'
+import { DisplayConfig } from './display'
+import { NetworkConfig } from './network'
+import { PluginConfig } from './plugin'
+import { About } from './about'
 
-export default {
-  name: 'SettingsView',
-  priority: 10001,
-  displayName: <span><FontAwesome name='cog' />{__(" Settings")}</span>,
-  description: '功能设置界面',
-  reactClass: class reactClass extends React.Component {
-    shouldComponentUpdate = (nextProps, nextState) => (false)
-    render() {
-      return (
-        <Tabs bsStyle="pills" defaultActiveKey={0} animation={false} justified id="settings-view-tabs">
-          <link rel="stylesheet" href={path.join(__dirname, 'assets', 'settings.css')} />
-          <Tab eventKey={0} title={__("Common")} className='poi-settings-Tab'>
-            <PoiConfig />
-          </Tab>
-          <Tab eventKey={1} title={__("Display")} className='poi-settings-Tab'>
-            <DisplayConfig />
-          </Tab>
-          <Tab eventKey={2} title={__("Proxy")} className='poi-settings-Tab'>
-            <NetworkConfig />
-          </Tab>
-          <Tab eventKey={3} title={__("Plugins")} className='poi-settings-Tab'>
-            <PluginConfig />
-          </Tab>
-          <Tab eventKey={-1} title={__("About")} className='poi-settings-Tab'>
-            <Others />
-          </Tab>
-        </Tabs>
-      )
-    }
+const TABS = [
+  {
+    id: 0,
+    title: 'Common',
+    component: PoiConfig,
+    icon: 'wrench',
   },
+  {
+    id: 4,
+    title: 'Gaming',
+    component: GamingConfig,
+    icon: 'gamepad',
+  },
+  {
+    id: 1,
+    title: 'Display',
+    component: DisplayConfig,
+    icon: 'television',
+  },
+  {
+    id: 2,
+    title: 'Network',
+    component: NetworkConfig,
+    icon: 'link',
+  },
+  {
+    id: 3,
+    title: 'Plugins',
+    component: PluginConfig,
+    icon: 'puzzle-piece',
+  },
+  {
+    id: -1,
+    title: 'About',
+    component: About,
+    icon: 'question-circle',
+  },
+]
+
+const SettingsTabs = styled(Tabs)`
+  height: 100%;
+
+  .bp3-tab-list {
+    justify-content: space-between;
+  }
+
+  .bp3-tab {
+    flex: 1 0 30px;
+    text-align: center;
+
+    &[aria-selected='true'] {
+      flex: 4 0 120px;
+    }
+  }
+
+  .bp3-tab-panel {
+    margin: 0;
+    height: calc(100% - 30px);
+    overflow-y: scroll;
+    padding: 1px 2px;
+  }
+`
+
+@withNamespaces(['setting'])
+export class reactClass extends React.Component {
+  state = {
+    activeTab: 0,
+  }
+
+  shouldComponentUpdate = (nextProps, nextState) =>
+    !isEqual(nextProps, this.props) || nextState.activeTab !== this.state.activeTab
+
+  handleTabChange = id => {
+    this.setState({ activeTab: id })
+  }
+
+  render() {
+    const { t } = this.props
+    const { activeTab } = this.state
+    return (
+      <SettingsTabs
+        selectedTabId={activeTab}
+        id="settings-view-tabs"
+        className="settings-view-tabs"
+        onChange={this.handleTabChange}
+      >
+        {map(TABS, tab => (
+          <Tab
+            key={tab.id}
+            id={tab.id}
+            title={
+              tab.id === activeTab ? (
+                <>
+                  <FontAwesome name={tab.icon} /> {t(tab.title)}
+                </>
+              ) : (
+                <Tooltip position={Position.BOTTOM} content={t(tab.title)} hoverOpenDelay={500}>
+                  <FontAwesome name={tab.icon} />
+                </Tooltip>
+              )
+            }
+            className="poi-settings-tab"
+            panel={<tab.component />}
+          />
+        ))}
+      </SettingsTabs>
+    )
+  }
 }
+
+export const displayName = (
+  <span>
+    <FontAwesome name="cog" /> <Trans>setting:Settings</Trans>
+  </span>
+)
